@@ -2,7 +2,6 @@ import {
     IsString,
     IsEmail,
     IsOptional,
-    IsDateString,
     MinLength,
     MaxLength,
 } from 'class-validator';
@@ -29,7 +28,4 @@ export class CreateUserDto {
     @IsString()
     @MinLength(8)
     password: string;
-
-    @IsDateString()
-    birth_date: string;
 }

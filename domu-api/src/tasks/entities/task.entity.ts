@@ -6,7 +6,7 @@ import {
   JoinColumn,
   DeleteDateColumn,
 } from 'typeorm';
-import { User } from '../../users/entities/user.entity';
+import { User } from '@/users/entities/user.entity';
 import { FrequencyType } from '../enums/frequency-type.enum';
 
 @Entity({ name: 'tasks' })
@@ -38,6 +38,8 @@ export class Task {
   is_completed: boolean;
 
   // TODO: timestampz completed_at
+  @Column({ type: 'timestamptz', nullable: true })
+  completed_at: Date;
 
   @Column({ type: 'boolean', default: false })
   is_strict: boolean;

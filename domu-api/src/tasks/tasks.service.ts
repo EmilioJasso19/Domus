@@ -5,7 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Task } from './entities/task.entity';
 import { Repository } from 'typeorm';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
-import { User } from 'src/users/entities/user.entity';
+import { User } from '@/users/entities/user.entity';
 
 @Injectable()
 export class TasksService {

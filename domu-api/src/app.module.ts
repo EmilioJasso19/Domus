@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
@@ -7,6 +7,9 @@ import { UsersModule } from './users/users.module';
 import { join } from 'path';
 import { TasksModule } from './tasks/tasks.module';
 import { HomeModule } from './home/home.module';
+import { AuthModule } from './auth/auth.module';
+import { UserHomeRoleModule } from './user-home-role/user-home-role.module';
+import { RoleModule } from './role/role.module';
 
 @Module({
   imports: [
@@ -19,12 +22,16 @@ import { HomeModule } from './home/home.module';
       password: process.env.DB_PASSWORD || 'postgres',
       database: process.env.DB_NAME || 'db-nestjs',
       entities: [join(process.cwd(), 'dist/**/*.entity{.ts,.js}')],
-      synchronize: true,
-      autoLoadEntities: true,
+      synchronize: false,
+      migrations: ['dist/migrations/*.js'],
+      logging: true,
     }),
     UsersModule,
     TasksModule,
     HomeModule,
+    AuthModule,
+    UserHomeRoleModule,
+    RoleModule,
   ],
   controllers: [AppController],
   providers: [AppService],
