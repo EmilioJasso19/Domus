@@ -31,14 +31,10 @@ export class AuthService {
   }
 
   async signUp(signUpDto: SignUpDto) {
-    // UsersService.create() ya hashea la contraseña internamente
-    // Solo pasamos todos los datos
     const user = await this.usersService.create(signUpDto);
     
-    // No devolver la contraseña
     const { password, ...userWithoutPassword } = user;
     
-    // Opcional: generar token automáticamente al registrarse
     const payload = { sub: user.id, email: user.email };
     const access_token = this.jwtService.sign(payload, { secret: process.env.JWT_SECRET! });
     
