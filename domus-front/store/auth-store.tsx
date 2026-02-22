@@ -129,7 +129,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
 	logout: async () => {
 		await SecureStore.deleteItemAsync("token");
-    await AsyncStorage.removeItem("user");
+    	await AsyncStorage.removeItem("user");
 		set({ token: null, user: null });
 		router.push("(auth)/login");
 	},

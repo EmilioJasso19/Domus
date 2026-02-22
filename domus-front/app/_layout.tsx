@@ -3,13 +3,14 @@ import {
 	DefaultTheme,
 	ThemeProvider,
 } from "@react-navigation/native";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack, useRootNavigationState, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import "react-native-reanimated";
 import "../global.css";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useAuthStore } from "@/store/auth-store";
+import Toast from 'react-native-toast-message';
 
 export const unstable_settings = {
 	anchor: "(tabs)",
@@ -19,14 +20,15 @@ function RootLayoutNav() {
 	// const colorScheme = useColorScheme();
 	const { token, loadToken, isHydrated } = useAuthStore();
 	const segments = useSegments();
-	const router = useRouter();
+	const router = useRouter()
+	const navigationState = useRootNavigationState();
 
 	useEffect(() => {
 		loadToken();
 	}, []);
 
 	useEffect(() => {
-		if (!isHydrated) return; // espera a que SecureStore responda
+		if (!navigationState?.key || !isHydrated) return; 
 
 		const inAuthGroup = segments[0] === "(auth)";
 
@@ -35,7 +37,7 @@ function RootLayoutNav() {
 		} else if (token && inAuthGroup) {
 			router.replace("/(tabs)");
 		}
-	}, [token, segments, isHydrated]);
+	}, [navigationState?.key, token, segments, isHydrated]);
 
 	return (
 		// <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
@@ -49,6 +51,7 @@ function RootLayoutNav() {
 				/>
 			</Stack>
 			<StatusBar style="auto" />
+			<Toast />
 		</>
 		// </ThemeProvider>
 	);

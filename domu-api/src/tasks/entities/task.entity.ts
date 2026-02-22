@@ -15,7 +15,10 @@ export class Task {
   id: string;
 
   @ManyToOne(() => User, { nullable: true })
-  @JoinColumn({ name: 'user_id' })
+  @JoinColumn({ name: 'responsible_id' })
+  responsible: User;
+
+  @Column({ name: 'responsible_id', type: 'bigint', nullable: true })
   responsible_id: string;
 
   @Column({ type: 'varchar', length: 100 })

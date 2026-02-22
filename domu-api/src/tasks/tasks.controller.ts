@@ -1,8 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { AuthUser } from '@/auth/decorators/auth-user.decorators';
+import { User } from '@/users/entities/user.entity';
+import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @Controller('tasks')
 export class TasksController {
   constructor(private readonly tasksService: TasksService) { }
@@ -54,11 +58,11 @@ export class TasksController {
     return this.tasksService.assignTaskToRandomUser(taskId);
   }
 
-  @Patch(':taskId/mark-completed/:authId')
-  markAsCompleted(
+  @Patch(':taskId/toggle-completion')
+  toggleCompletion(
     @Param('taskId') taskId: string,
-    @Param('authId') authId: string,
+    @AuthUser() user: User
   ) {
-    return this.tasksService.markAsCompleted(taskId, authId);
+    return this.tasksService.toggleCompletion(taskId, user.id);
   }
 }

@@ -1,6 +1,7 @@
 import Axios from 'axios'
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+import { useAuthStore } from "@/store/auth-store";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/';
 
@@ -10,6 +11,18 @@ const axios = Axios.create({
         'Content-Type': 'application/json',
     },
 });
+
+// interceptor para manejar errores globales (como token expirado)
+axios.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      const logout = useAuthStore.getState().logout;
+      await logout();
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Interceptor para agregar el token a cada solicitud
 axios.interceptors.request.use(
@@ -26,13 +39,11 @@ axios.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
-            console.log("Token inválido o expirado, redirigiendo al login")
             SecureStore.deleteItemAsync('token');
             router.push('(auth)/login');
         }
         
         if (error.response?.status === 419) {
-            console.log("Token expirado, redirigiendo al login")
             SecureStore.deleteItemAsync('token');
             router.push('(auth)/login');
         }

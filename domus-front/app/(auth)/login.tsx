@@ -1,15 +1,13 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
 	View,
 	Text,
-	TextInput,
-	TouchableOpacity,
-	StyleSheet,
 	KeyboardAvoidingView,
 	Platform,
 	ActivityIndicator,
 	ScrollView,
 	Image,
+	Pressable,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -110,25 +108,24 @@ export default function LoginScreen() {
 				/>
 
 				{/* Submit */}
-				<TouchableOpacity
-					style={[styles.btn, isLoading && styles.btnDisabled]}
+				<Pressable
+					className="bg-blue-600 rounded-lg h-14 flex items-center justify-center mt-2 shadow-md"
 					onPress={handleSubmit}
 					disabled={isLoading}
-					activeOpacity={0.85}
 				>
 					{isLoading ? (
 						<ActivityIndicator color="#fff" />
 					) : (
-						<Text style={styles.btnText}>Iniciar sesión</Text>
+						<Text className="text-white font-bold text-base tracking-wider">Iniciar sesión</Text>
 					)}
-				</TouchableOpacity>
+				</Pressable>
 
 				{/* Register link */}
-				<View style={styles.registerRow}>
-					<Text style={styles.registerText}>¿No tienes una cuenta? </Text>
-					<TouchableOpacity onPress={() => router.replace("/(auth)/register")}>
-						<Text style={styles.registerLink}>Regístrate</Text>
-					</TouchableOpacity>
+				<View className="flex-row justify-center items-center mt-6">
+					<Text className="text-sm text-gray-500">¿No tienes una cuenta?</Text>
+					<Pressable onPress={() => router.replace("/(auth)/register")}>
+						<Text className="text-sm font-semibold text-blue-600 ml-1">Regístrate</Text>
+					</Pressable>
 				</View>
 			</ScrollView>
 		</KeyboardAvoidingView>
@@ -136,49 +133,3 @@ export default function LoginScreen() {
 		// TODO: Agregar botón de "Iniciar sesión con Google"
 	);
 }
-
-const styles = StyleSheet.create({
-	globalErrorText: {
-		fontSize: 13,
-		color: "#DC2626",
-		flex: 1,
-	},
-	btn: {
-		backgroundColor: "#2563EB",
-		borderRadius: 14,
-		height: 54,
-		alignItems: "center",
-		justifyContent: "center",
-		marginTop: 8,
-		shadowColor: "#2563EB",
-		shadowOffset: { width: 0, height: 4 },
-		shadowOpacity: 0.3,
-		shadowRadius: 8,
-		elevation: 6,
-	},
-	btnDisabled: {
-		opacity: 0.7,
-	},
-	btnText: {
-		color: "#FFFFFF",
-		fontSize: 16,
-		fontWeight: "700",
-		letterSpacing: 0.2,
-	},
-
-	registerRow: {
-		flexDirection: "row",
-		justifyContent: "center",
-		alignItems: "center",
-		marginTop: 24,
-	},
-	registerText: {
-		fontSize: 14,
-		color: "#6B7280",
-	},
-	registerLink: {
-		fontSize: 14,
-		fontWeight: "600",
-		color: "#2563EB",
-	},
-});

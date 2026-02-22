@@ -32,11 +32,10 @@ export class TasksService {
   }
 
   async findAllByUser(userId: string) {
-    const task = await this.taskRepository.findOneBy({ responsible_id: userId });
-    if (!task) {
-      throw new NotFoundException('Task not found for this user');
-    }
-    return task;
+    return this.taskRepository
+      .createQueryBuilder('task')
+      .where('task.responsible_id = :userId', { userId })
+      .getMany();
   }
 
   async update(id: string, updateTaskDto: UpdateTaskDto) {
@@ -97,7 +96,7 @@ export class TasksService {
     }
   }
 
-  async markAsCompleted(taskId: string, authId: string) {
+  async toggleCompletion(taskId: string, authId: string) {
     const task = await this.taskRepository.findOneBy({ id: taskId });
     if (!task) {
       throw new NotFoundException('Task not found');
@@ -107,7 +106,8 @@ export class TasksService {
       throw new BadRequestException('You are not responsible for this task');
     }
 
-    task.is_completed = true;
+    task.is_completed = !task.is_completed;
+    // task.completed_at = task.is_completed ? new Date() : null;
     return this.taskRepository.save(task);
   }
 
