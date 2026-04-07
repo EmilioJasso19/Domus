@@ -10,7 +10,6 @@ import { AuthUser } from '@/auth/decorators/auth-user.decorators';
 export class HomeController {
   constructor(private readonly homeService: HomeService) {}
 
-  // TODO: userId should be retrieved from auth token
   @Post()
   create(@Body() createHomeDto: CreateHomeDto, @AuthUser() user) {
     return this.homeService.create(createHomeDto, user);

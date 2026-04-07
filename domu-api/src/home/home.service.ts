@@ -5,7 +5,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '@/users/entities/user.entity';
 import { Repository } from 'typeorm';
 import { Home } from './entities/home.entity';
-import { response } from 'express';
 import { Role } from '@/role/entities/role.entity';
 import { UserHomeRole } from '@/user-home-role/entities/user-home-role.entity';
 
@@ -112,6 +111,6 @@ export class HomeService {
 
     await this.homeRepository.delete(id);
 
-    return response.status(200).json({ message: 'Home removed successfully' });
+    return { message: 'Home removed successfully' };
   }
 }

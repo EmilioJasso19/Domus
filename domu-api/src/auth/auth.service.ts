@@ -16,7 +16,7 @@ export class AuthService {
     const user = await this.usersService.findByEmail(signInDto.email);
     
     if (!user || !(await argon2.verify(user.password, signInDto.password))) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Credenciales inválidas');
     }
 
     const payload = { sub: user.id, email: user.email };
