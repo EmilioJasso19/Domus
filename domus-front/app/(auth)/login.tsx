@@ -52,84 +52,96 @@ export default function LoginScreen() {
 
 	return (
 		<KeyboardAvoidingView
-			className="flex flex-col min-h-screen bg-white"
+			className="flex-1 bg-slate-50"
 			behavior={Platform.OS === "ios" ? "padding" : "height"}
 		>
-			{/* Header */}
-			<View className="flex flex-col items-center justify-center pt-28 pb-8 gap-2">
-				<Image
-					source={require("../../assets/images/domus-logo-ai.png")}
-					className="w-24 h-24"
-				/>
-				<Text className="text-3xl font-extrabold">Domus</Text>
-				<Text className="text-md font-semibold text-gray-500">
-					Organiza tu hogar con facilidad
-				</Text>
-			</View>
-
 			<ScrollView
-				className="px-6 pb-12"
+				className="flex-1"
+				contentContainerStyle={{ flexGrow: 1 }}
 				keyboardShouldPersistTaps="handled"
 				showsVerticalScrollIndicator={false}
 			>
-				{/* Global error */}
-				{error && (
-					<View className="flex flex-row items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">
-						<Ionicons name="alert-circle-outline" size={16} color="#DC2626" />
-						<Text className="text-sm text-red-600">{error}</Text>
+				{/* Header: logo + título + subtítulo */}
+				<View className="items-center pt-20 pb-8 px-6 gap-3">
+					<Image
+						source={require("../../assets/images/domus-logo-ai.png")}
+						className="w-20 h-20"
+					/>
+					<View className="items-center gap-1">
+						<Text className="text-3xl font-nunito-extrabold text-gray-900 tracking-tight">
+							Bienvenido de nuevo
+						</Text>
+						<Text className="text-sm font-nunito text-gray-500">
+							Ingresa tus datos para continuar.
+						</Text>
 					</View>
-				)}
+				</View>
 
-				{/* Email */}
-				<InputField
-					label="Correo electrónico"
-					icon="mail-outline"
-					placeholder="user@ejemplo.com"
-					value={form.email}
-					onChangeText={(v) => updateField("email", v)}
-					keyboardType="email-address"
-					autoCapitalize="none"
-					autoComplete="email"
-					error={errors.email}
-				/>
-
-				{/* Password */}
-				<InputField
-					label="Contraseña"
-					icon="lock-closed-outline"
-					rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
-					onRightIconPress={() => setShowPassword((p) => !p)}
-					placeholder="Crea una contraseña"
-					value={form.password}
-					onChangeText={(v) => updateField("password", v)}
-					secureTextEntry={!showPassword}
-					autoCapitalize="none"
-					error={errors.password}
-				/>
-
-				{/* Submit */}
-				<Pressable
-					className="bg-blue-600 rounded-lg h-14 flex items-center justify-center mt-2 shadow-md"
-					onPress={handleSubmit}
-					disabled={isLoading}
-				>
-					{isLoading ? (
-						<ActivityIndicator color="#fff" />
-					) : (
-						<Text className="text-white font-bold text-base tracking-wider">Iniciar sesión</Text>
+				{/* Formulario */}
+				<View className="flex-1 px-6 gap-1">
+					{/* Error global */}
+					{error && (
+						<View className="flex-row items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2">
+							<Ionicons name="alert-circle-outline" size={16} color="#DC2626" />
+							<Text className="text-sm font-nunito text-red-600 flex-1">{error}</Text>
+						</View>
 					)}
-				</Pressable>
 
-				{/* Register link */}
-				<View className="flex-row justify-center items-center mt-6">
-					<Text className="text-sm text-gray-500">¿No tienes una cuenta?</Text>
-					<Pressable onPress={() => router.replace("/(auth)/register")}>
-						<Text className="text-sm font-semibold text-blue-600 ml-1">Regístrate</Text>
+					{/* Email */}
+					<InputField
+						label="Correo electrónico"
+						icon="mail-outline"
+						placeholder="tu@email.com"
+						value={form.email}
+						onChangeText={(v) => updateField("email", v)}
+						keyboardType="email-address"
+						autoCapitalize="none"
+						autoComplete="email"
+						error={errors.email}
+					/>
+
+					{/* Contraseña */}
+					<InputField
+						label="Contraseña"
+						icon="lock-closed-outline"
+						rightIcon={showPassword ? "eye-off-outline" : "eye-outline"}
+						onRightIconPress={() => setShowPassword((p) => !p)}
+						placeholder="••••••••"
+						value={form.password}
+						onChangeText={(v) => updateField("password", v)}
+						secureTextEntry={!showPassword}
+						autoCapitalize="none"
+						error={errors.password}
+					/>
+
+				</View>
+
+				{/* CTA + registro — zona inferior (thumb zone) */}
+				<View className="px-6 pt-6 pb-10 gap-4">
+					<Pressable
+						className="bg-blue-600 rounded-2xl h-14 items-center justify-center shadow-sm active:bg-blue-700"
+						onPress={handleSubmit}
+						disabled={isLoading}
+					>
+						{isLoading ? (
+							<ActivityIndicator color="#fff" />
+						) : (
+							<Text className="text-white font-nunito-bold text-base tracking-wide">
+								Iniciar sesión
+							</Text>
+						)}
 					</Pressable>
+
+					<View className="flex-row justify-center items-center">
+						<Text className="text-sm font-nunito text-gray-500">¿No tienes cuenta?</Text>
+						<Pressable onPress={() => router.replace("/(auth)/register")}>
+							<Text className="text-sm font-nunito-semibold text-blue-600 ml-1">
+								Registrarse
+							</Text>
+						</Pressable>
+					</View>
 				</View>
 			</ScrollView>
 		</KeyboardAvoidingView>
-
-		// TODO: Agregar botón de "Iniciar sesión con Google"
 	);
 }

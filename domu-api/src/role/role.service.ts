@@ -22,6 +22,11 @@ export class RoleService {
     const role = await this.roleRepository.findOneBy({ id });
     return role;
   }
+  
+  async findOneBy(condition: Partial<Role>) {
+    const role = await this.roleRepository.findOneBy(condition);
+    return role;
+  }
 
   update(id: string, updateRoleDto: UpdateRoleDto) {
     return `This action updates a #${id} role`;

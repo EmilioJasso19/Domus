@@ -1,7 +1,17 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { HomeService } from './home.service';
 import { CreateHomeDto } from './dto/create-home.dto';
 import { UpdateHomeDto } from './dto/update-home.dto';
+import { JoinHomeDto } from './dto/join-home.dto';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { AuthUser } from '@/auth/decorators/auth-user.decorators';
 
@@ -15,6 +25,11 @@ export class HomeController {
     return this.homeService.create(createHomeDto, user);
   }
 
+  @Post('join')
+  join(@Body() joinHomeDto: JoinHomeDto, @AuthUser() user) {
+    return this.homeService.join(joinHomeDto, user);
+  }
+
   @Get()
   findAll(@AuthUser() user) {
     return this.homeService.findAll(user);
@@ -26,12 +41,21 @@ export class HomeController {
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateHomeDto: UpdateHomeDto, @AuthUser() user) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateHomeDto: UpdateHomeDto,
+    @AuthUser() user,
+  ) {
     return this.homeService.update(id, updateHomeDto, user);
   }
 
   @Delete(':id')
   async remove(@AuthUser() user, @Param('id') id: string) {
     return this.homeService.remove(id, user);
+  }
+
+  @Get('/members/:id')
+  findMembers(@Param('id') id: string, @AuthUser() user) {
+    return this.homeService.findMembers(id, user);
   }
 }

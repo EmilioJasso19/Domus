@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { z } from "zod";
 import axios from "../api/axios";
 import { router } from "expo-router";
+import { useHomeStore } from "./home-store";
 
 // ===== Zod Schemas ====
 
@@ -81,6 +82,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 			user: userRaw ? JSON.parse(userRaw) : null,
 			isHydrated: true,
 		});
+		// Rehidratar hogares desde el home-store
+		await useHomeStore.getState().loadHouseholds();
 	},
 
 	login: async (data) => {
@@ -88,18 +91,34 @@ export const useAuthStore = create<AuthState>((set) => ({
 		try {
 			const response = await axios.post("/auth/login", data);
 
-			if (response.status !== 200) {
-				const err = await response.data;
-				set({ error: err.message || "Credenciales incorrectas" });
-				throw new Error(err.message || "Credenciales incorrectas");
-			}
-
-			const { access_token, user } = response.data;
+			const { access_token, user, households } = response.data;
 			await SecureStore.setItemAsync("token", access_token);
 			await AsyncStorage.setItem("user", JSON.stringify(user));
 			set({ token: access_token, user });
+
+			// Delegar la responsabilidad de hogares al home-store
+			await useHomeStore.getState().setHouseholds(households ?? []);
 		} catch (e: any) {
-			set({ error: e.message });
+			let message = "Algo salió mal. Inténtalo de nuevo.";
+
+			switch (e.status) {
+				case 400:
+					message = "Revisa los datos ingresados.";
+					break;
+				case 401:
+					message = "Correo o contraseña incorrectos.";
+					break;
+				case 429:
+					message = "Demasiados intentos. Espera un momento.";
+					break;
+				case 500:
+				case 502:
+				case 503:
+					message = "Error del servidor. Inténtalo más tarde.";
+					break;
+			}
+
+			set({ error: message });
 		} finally {
 			set({ isLoading: false });
 		}
@@ -110,7 +129,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 		try {
 			const response = await axios.post("/auth/register", data);
 
-			if (response.status !== 200) {
+			if (response.status !== 201) {
 				const err = await response.data;
 				set({ error: err.message || "Error al registrar" });
 				throw new Error(err.message || "Error al registrar");
@@ -120,6 +139,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 			await SecureStore.setItemAsync("token", token);
 			await AsyncStorage.setItem("user", JSON.stringify(user));
 			set({ token, user });
+
+			// Un usuario recién registrado no tiene hogares todavía
+			await useHomeStore.getState().setHouseholds([]);
 		} catch (e: any) {
 			set({ error: e.message });
 		} finally {
@@ -129,8 +151,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
 	logout: async () => {
 		await SecureStore.deleteItemAsync("token");
-    	await AsyncStorage.removeItem("user");
+		await AsyncStorage.removeItem("user");
 		set({ token: null, user: null });
+
+		// Limpiar también los hogares
+		await useHomeStore.getState().clearHouseholds();
+
 		router.push("(auth)/login");
 	},
 

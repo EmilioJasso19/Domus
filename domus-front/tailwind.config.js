@@ -4,7 +4,14 @@ module.exports = {
 	content: ["./app/**/*.{js,jsx,ts,tsx}", "./components/**/*.{js,jsx,ts,tsx}"],
 	presets: [require("nativewind/preset")],
 	theme: {
-		extend: {},
+		extend: {
+			fontFamily: {
+				nunito: ["Nunito_400Regular"],
+				"nunito-semibold": ["Nunito_600SemiBold"],
+				"nunito-bold": ["Nunito_700Bold"],
+				"nunito-extrabold": ["Nunito_800ExtraBold"],
+			},
+		},
 	},
 	plugins: [],
 };

@@ -2,7 +2,7 @@ import { IsEmail, IsStrongPassword } from 'class-validator';
 
 export class SignInDto {
     @IsEmail()
-    email: string;
+    email!: string;
 
     @IsStrongPassword({
         minLength: 8,
@@ -11,5 +11,5 @@ export class SignInDto {
         minNumbers: 1,
         minSymbols: 1,
     })
-    password: string;
+    password!: string;
 }

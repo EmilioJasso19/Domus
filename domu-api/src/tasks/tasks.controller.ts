@@ -1,10 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { AuthUser } from '@/auth/decorators/auth-user.decorators';
 import { User } from '@/users/entities/user.entity';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
+import { QueryTasksDto } from './dto/query-tasks.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('tasks')
@@ -12,14 +13,24 @@ export class TasksController {
   constructor(private readonly tasksService: TasksService) { }
 
   @Post()
-  create(@Body() createTaskDto: CreateTaskDto) {
-    return this.tasksService.create(createTaskDto);
+  create(@Body() createTaskDto: CreateTaskDto, @AuthUser() user: User) {
+    return this.tasksService.create(createTaskDto, user);
   }
 
-  @Get() // todo: get all BY house (from the auth user)
-  findAll() {
-    return this.tasksService.findAll();
+  @Get()
+  findAll(@AuthUser() authUser, @Query() query: QueryTasksDto) {
+    return this.tasksService.findAll(authUser, query);
   }
+
+  // @Get()
+  // findAll(@AuthUser() user: User, homeID: string) {
+  //   return this.tasksService.findAllByUserAndHome(user, homeID);
+  // }
+
+  // @Get('/home/:homeID')
+  // findAllByHome(homeID: string) {
+  //   return this.tasksService.findAllByHome(homeID);
+  // }
 
   @Get(':id')
   findOne(@Param('id') id: string) {

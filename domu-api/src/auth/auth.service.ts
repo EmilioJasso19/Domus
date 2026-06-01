@@ -4,12 +4,14 @@ import { SignUpDto } from './dto/sign-up.dto';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '@/users/users.service';
 import * as argon2 from 'argon2';
+import { UserHomeRoleService } from '@/user-home-role/user-home-role.service';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private usersService: UsersService,
-    private jwtService: JwtService
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+    private readonly userHomeRoleService: UserHomeRoleService
   ) {}
 
   async signIn(signInDto: SignInDto) {
@@ -19,6 +21,8 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
+    const households = await this.userHomeRoleService.findAll(user.id);
+
     const payload = { sub: user.id, email: user.email };
     return {
       access_token: this.jwtService.sign(payload, { secret: process.env.JWT_SECRET! }),
@@ -27,6 +31,10 @@ export class AuthService {
         email: user.email,
         name: user.name,
       },
+      households: households.map(h => ({
+        id: h.home.id,
+        name: h.home.name,
+      }))
     };
   }
 

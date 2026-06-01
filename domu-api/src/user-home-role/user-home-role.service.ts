@@ -16,7 +16,7 @@ export class UserHomeRoleService {
         @InjectRepository(User) private userRepository: Repository<User>,
         @InjectRepository(Role) private roleRepository: Repository<Role>,
         @InjectRepository(UserHomeRole) private userHomeRoleRepository: Repository<UserHomeRole>
-    ) {}
+    ) { }
 
     async create(createUserHomeRoleDto: CreateUserHomeRoleDto) {
         const user = await this.userRepository.findOneBy({ id: createUserHomeRoleDto.user_id });
@@ -37,6 +37,11 @@ export class UserHomeRoleService {
         return this.userHomeRoleRepository.save(userHomeRole);
     }
 
+    async assign(userId: string, homeId: string, roleId: string) {
+        const uhr = this.userHomeRoleRepository.create({ user_id: userId, home_id: homeId, role_id: roleId });
+        return this.userHomeRoleRepository.save(uhr);
+    }
+
     async findAll(userId: string) {
         const user = await this.userRepository.findOneBy({ id: userId });
         if (!user) {
@@ -47,6 +52,25 @@ export class UserHomeRoleService {
             where: { user_id: userId },
             relations: ['home', 'role']
         });
+    }
+
+    async findOne(userId: string, homeId: string) {
+        const userHomeRole = await this.userHomeRoleRepository.findOne({
+            where: { user_id: userId, home_id: homeId },
+            relations: ['home', 'role']
+        });
+        if (!userHomeRole) {
+            throw new NotFoundException('UserHomeRole not found');
+        }
+        return userHomeRole;
+    }
+
+    async findOneBy(condition: Partial<UserHomeRole>) {
+        const userHomeRole = await this.userHomeRoleRepository.findOneBy(condition);
+        if (!userHomeRole) {
+            throw new NotFoundException('UserHomeRole not found');
+        }
+        return userHomeRole;
     }
 
     async remove(userId: string, homeId: string) {
@@ -63,7 +87,7 @@ export class UserHomeRoleService {
         if (!authUser) {
             throw new NotFoundException('User not found');
         }
-        
+
         // get home
         const home = await this.homeRepository.findOneBy({ id: homeId });
         if (!home) {
@@ -75,7 +99,7 @@ export class UserHomeRoleService {
         if (!userHomeRole) {
             throw new NotFoundException('UserHomeRole not found');
         }
-        
+
         // get role to assign
         const role = await this.roleRepository.findOneBy({ id: roleId });
         if (!role) {

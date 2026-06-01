@@ -24,9 +24,9 @@ export default function InputField({
   return (
     <View className="mb-4">
       <View className="flex-row items-baseline mb-1.5">
-        <Text className="text-sm font-medium text-gray-700">{label}</Text>
+        <Text className="text-md font-nunito-semibold text-gray-700">{label}</Text>
         {labelSuffix && (
-          <Text className="text-sm text-blue-600 ml-1.5">{labelSuffix}</Text>
+          <Text className="text-md font-nunito text-blue-600 ml-1.5">{labelSuffix}</Text>
         )}
       </View>
 
@@ -58,7 +58,7 @@ export default function InputField({
       </View>
 
       {error && (
-        <Text className="text-xs text-red-600 mt-1 ml-0.5">{error}</Text>
+        <Text className="text-sm font-nunito text-red-900 mt-1 ml-0.5">{error}</Text>
       )}
     </View>
   );

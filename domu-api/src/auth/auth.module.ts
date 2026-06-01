@@ -5,14 +5,17 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '@/users/users.module';
+import { UserHomeRoleModule } from '@/user-home-role/user-home-role.module';
 
 @Module({
   imports: [UsersModule, PassportModule, JwtModule.register({
     secret: process.env.JWT_SECRET,
-    signOptions: { expiresIn: parseInt(process.env.JWT_EXPIRES_IN || '3600') },
-  })],
+    signOptions: {
+      expiresIn: (process.env.JWT_EXPIRES_IN || '1d') as `${number}d`,
+    },
+  }), UserHomeRoleModule],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
   exports: [AuthService],
 })
-export class AuthModule {}
+export class AuthModule { }

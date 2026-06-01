@@ -2,9 +2,13 @@ import { IsString, MaxLength, MinLength, IsOptional, IsDateString, IsEnum, IsBoo
 import { FrequencyType } from "../enums/frequency-type.enum";
 
 export class CreateTaskDto {
+
+    @IsString()
+    home_id!: string;
+
     @IsString()
     @MaxLength(100)
-    name: string;
+    name!: string;
 
     @IsOptional()
     @IsString()
@@ -12,10 +16,10 @@ export class CreateTaskDto {
     description?: string;
 
     @IsDateString()
-    due_date: string;
+    due_date!: string;
 
     @IsEnum(FrequencyType)
-    frequency_type: FrequencyType;
+    frequency_type!: FrequencyType;
 
     @IsBoolean()
     @IsOptional()

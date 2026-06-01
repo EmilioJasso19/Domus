@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,27 @@ import InputField from '../../components/ui/input-field';
 
 type FormErrors = Partial<Record<keyof RegisterForm, string>>;
 
+// ── Cálculo de fuerza de contraseña ─────────────────────────────────────────
+// Devuelve un score de 0 a 4 según las reglas que valida el backend
+// (longitud, minúscula, mayúscula, número, símbolo).
+function getPasswordStrength(password: string): number {
+  if (!password) return 0;
+  let score = 0;
+  if (password.length >= 8) score++;
+  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+  if (/\d/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+  return score; // 0–4
+}
+
+const STRENGTH_CONFIG = [
+  { label: '', color: '#E5E7EB', bars: 0 },
+  { label: 'Débil', color: '#EF4444', bars: 1 },
+  { label: 'Regular', color: '#F59E0B', bars: 2 },
+  { label: 'Buena', color: '#3B82F6', bars: 3 },
+  { label: 'Fuerte', color: '#22C55E', bars: 4 },
+];
+
 export default function RegisterScreen() {
   const router = useRouter();
   const { register, isLoading, error, clearError } = useAuthStore();
@@ -28,6 +49,9 @@ export default function RegisterScreen() {
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [showPassword, setShowPassword] = useState(false);
+
+  const strength = useMemo(() => getPasswordStrength(form.password), [form.password]);
+  const strengthInfo = STRENGTH_CONFIG[strength];
 
   const updateField = (field: keyof RegisterForm, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -53,19 +77,19 @@ export default function RegisterScreen() {
 
   return (
     <KeyboardAvoidingView
-      className="flex-1 bg-white"
+      className="flex-1 bg-slate-50"
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 pt-14 pb-4">
         <TouchableOpacity
-          onPress={() => router.push('(auth)/login')}
+          onPress={() => router.push('/(auth)/login')}
           className="w-9 h-9 items-center justify-center"
         >
           <Ionicons name="chevron-back" size={22} color="#2563EB" />
         </TouchableOpacity>
-        <Text className="text-[17px] font-semibold text-gray-900 tracking-tight">
-          Create Account
+        <Text className="text-[17px] font-nunito-bold text-blue-600 tracking-tight">
+          Domus
         </Text>
         <View className="w-9 h-9" />
       </View>
@@ -78,11 +102,11 @@ export default function RegisterScreen() {
       >
         {/* Title */}
         <View className="mb-7">
-          <Text className="text-[28px] font-bold text-gray-900 tracking-tight mb-1">
-            Únete a Domus
+          <Text className="text-[28px] font-nunito-extrabold text-gray-900 tracking-tight mb-1">
+            Crear cuenta
           </Text>
-          <Text className="text-md text-gray-500">
-            Crea tu cuenta y organiza tu hogar facilmente
+          <Text className="text-md font-nunito text-gray-500">
+            Únete a Domus para organizar tu hogar.
           </Text>
         </View>
 
@@ -90,46 +114,46 @@ export default function RegisterScreen() {
         {error && (
           <View className="flex-row items-center gap-1.5 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 mb-4">
             <Ionicons name="alert-circle-outline" size={16} color="#DC2626" />
-            <Text className="text-[13px] text-red-600 flex-1">{error}</Text>
+            <Text className="text-[13px] font-nunito text-red-600 flex-1">{error}</Text>
           </View>
         )}
 
-        {/* First Name */}
+        {/* Nombre */}
         <InputField
-          label="First Name"
-          placeholder="e.g. Alex"
+          label="Nombre"
+          placeholder="Ej. Juan"
           value={form.name}
           onChangeText={(v) => updateField('name', v)}
           autoCapitalize="words"
           error={errors.name}
         />
 
-        {/* Paternal Last Name */}
+        {/* Apellido paterno */}
         <InputField
-          label="Paternal Last Name"
-          placeholder="Enter last name"
+          label="Apellido paterno"
+          placeholder="Ej. Pérez"
           value={form.paternal_surname}
           onChangeText={(v) => updateField('paternal_surname', v)}
           autoCapitalize="words"
           error={errors.paternal_surname}
         />
 
-        {/* Maternal Last Name */}
+        {/* Apellido materno (opcional) */}
         <InputField
-          label="Maternal Last Name"
-          labelSuffix="(Optional)"
-          placeholder="Enter optional last name"
+          label="Apellido materno"
+          labelSuffix="(opcional)"
+          placeholder="Ej. García"
           value={form.maternal_surname}
           onChangeText={(v) => updateField('maternal_surname', v)}
           autoCapitalize="words"
           error={errors.maternal_surname}
         />
 
-        {/* Email */}
+        {/* Correo electrónico */}
         <InputField
-          label="Email Address"
+          label="Correo electrónico"
           icon="mail-outline"
-          placeholder="alex@example.com"
+          placeholder="tu@email.com"
           value={form.email}
           onChangeText={(v) => updateField('email', v)}
           keyboardType="email-address"
@@ -138,13 +162,13 @@ export default function RegisterScreen() {
           error={errors.email}
         />
 
-        {/* Password */}
+        {/* Contraseña */}
         <InputField
-          label="Password"
+          label="Contraseña"
           icon="lock-closed-outline"
           rightIcon={showPassword ? 'eye-off-outline' : 'eye-outline'}
           onRightIconPress={() => setShowPassword((p) => !p)}
-          placeholder="Create a password"
+          placeholder="Mínimo 8 caracteres"
           value={form.password}
           onChangeText={(v) => updateField('password', v)}
           secureTextEntry={!showPassword}
@@ -152,9 +176,30 @@ export default function RegisterScreen() {
           error={errors.password}
         />
 
+        {/* Indicador de fuerza de contraseña */}
+        {form.password.length > 0 && (
+          <View className="mt-1 mb-2">
+            <View className="flex-row gap-1.5">
+              {[0, 1, 2, 3].map((i) => (
+                <View
+                  key={i}
+                  className="flex-1 h-1.5 rounded-full"
+                  style={{
+                    backgroundColor:
+                      i < strengthInfo.bars ? strengthInfo.color : '#E5E7EB',
+                  }}
+                />
+              ))}
+            </View>
+            <Text className="text-[12px] font-nunito text-gray-400 mt-1.5">
+              Usa al menos 8 caracteres, números y símbolos.
+            </Text>
+          </View>
+        )}
+
         {/* Submit */}
         <TouchableOpacity
-          className={`bg-blue-600 rounded-2xl h-14 items-center justify-center mt-2 shadow-lg shadow-blue-600/30 ${isLoading ? 'opacity-70' : ''}`}
+          className={`bg-blue-600 rounded-2xl h-14 items-center justify-center mt-6 shadow-lg shadow-blue-600/30 ${isLoading ? 'opacity-70' : ''}`}
           onPress={handleSubmit}
           disabled={isLoading}
           activeOpacity={0.85}
@@ -162,17 +207,17 @@ export default function RegisterScreen() {
           {isLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text className="text-white text-base font-bold tracking-wide">
-              Register Account
+            <Text className="text-white text-base font-nunito-bold tracking-wide">
+              Continuar
             </Text>
           )}
         </TouchableOpacity>
 
         {/* Login link */}
         <View className="flex-row justify-center items-center mt-6">
-          <Text className="text-sm text-gray-500">Already have an account? </Text>
+          <Text className="text-sm font-nunito text-gray-500">¿Ya tienes cuenta? </Text>
           <TouchableOpacity onPress={() => router.replace('/(auth)/login')}>
-            <Text className="text-sm font-semibold text-blue-600">Log In</Text>
+            <Text className="text-sm font-nunito-semibold text-blue-600">Iniciar sesión</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

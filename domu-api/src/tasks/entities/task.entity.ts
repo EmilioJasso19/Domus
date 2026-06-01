@@ -8,58 +8,59 @@ import {
 } from 'typeorm';
 import { User } from '@/users/entities/user.entity';
 import { FrequencyType } from '../enums/frequency-type.enum';
+import { Home } from '@/home/entities/home.entity';
 
 @Entity({ name: 'tasks' })
 export class Task {
   @PrimaryGeneratedColumn('increment', { type: 'bigint' })
-  id: string;
+  id!: string;
 
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'responsible_id' })
-  responsible: User;
+  responsible!: User;
 
   @Column({ name: 'responsible_id', type: 'bigint', nullable: true })
-  responsible_id: string;
+  responsible_id!: string;
+
+  @ManyToOne(() => Home, { nullable: false })
+  @JoinColumn({ name: 'home_id' })
+  home!: Home;
+
+  @Column({ name: 'home_id', type: 'bigint', nullable: false })
+  home_id!: string;
 
   @Column({ type: 'varchar', length: 100 })
-  name: string;
+  name!: string;
 
   @Column({ type: 'text', nullable: true })
-  description: string;
+  description!: string;
 
   @Column({ type: 'date' })
-  due_date: Date;
+  due_date!: Date;
 
   @Column({
     type: 'enum',
     enum: FrequencyType,
     enumName: 'frequency_type_enum',
   })
-  frequency_type: FrequencyType;
+  frequency_type!: FrequencyType;
 
   @Column({ type: 'boolean', default: false })
-  is_completed: boolean;
+  is_completed!: boolean;
 
-  // TODO: timestampz completed_at
   @Column({ type: 'timestamptz', nullable: true })
-  completed_at: Date;
-
-  @Column({ type: 'boolean', default: false })
-  is_strict: boolean;
-
-  @Column({ type: 'text', nullable: true })
-  evidence_path: string;
+  completed_at!: Date;
 
   @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
-  created_at: Date;
+  created_at!: Date;
 
   @Column({
     type: 'timestamptz',
     default: () => 'CURRENT_TIMESTAMP',
     onUpdate: 'CURRENT_TIMESTAMP',
   })
-  updated_at: Date;
+  updated_at!: Date;
 
-  @DeleteDateColumn({ type: 'timestamptz' })
-  deleted_at: Date;
+  @DeleteDateColumn({ type: 'timestamptz', nullable: true, default: null })
+  deleted_at?: Date;
 }

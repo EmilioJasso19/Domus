@@ -11,8 +11,13 @@ import { Role } from '@/role/entities/role.entity';
 import { UserHomeRole } from '@/user-home-role/entities/user-home-role.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Home, User, Role, UserHomeRole]), AuthModule],
+  imports: [TypeOrmModule.forFeature([Home]), 
+    RoleModule,
+    UserHomeRoleModule, 
+    AuthModule
+  ],
   controllers: [HomeController],
   providers: [HomeService],
+  exports: [HomeService],
 })
-export class HomeModule {}
+export class HomeModule { }

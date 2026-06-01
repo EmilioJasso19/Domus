@@ -1,26 +1,33 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Task } from './entities/task.entity';
 import { Repository } from 'typeorm';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { UsersService } from '@/users/users.service';
 import { User } from '@/users/entities/user.entity';
+import { UserHomeRoleService } from '@/user-home-role/user-home-role.service';
+import { QueryTasksDto } from './dto/query-tasks.dto';
+import { endOfDay, startOfDay } from 'date-fns';
+import { fromZonedTime } from 'date-fns-tz';
 
+const APP_TIMEZONE = process.env.APP_TIMEZONE || 'UTC';
 @Injectable()
 export class TasksService {
   constructor(
     @InjectRepository(Task)
     private readonly taskRepository: Repository<Task>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
+    private readonly userService: UsersService,
+    private readonly uhrService: UserHomeRoleService,
   ) { }
-  create(createTaskDto: CreateTaskDto) {
-    return this.taskRepository.save(this.taskRepository.create(createTaskDto));
-  }
+  create(createTaskDto: CreateTaskDto, user: User) {
+    const uhr = this.uhrService.findOneBy({ user_id: user.id, home_id: createTaskDto.home_id });
+    if (!uhr) {
+      throw new BadRequestException('No perteneces a este hogar');
+    }
 
-  findAll() {
-    return this.taskRepository.find();
+    return this.taskRepository.save(this.taskRepository.create(createTaskDto));
   }
 
   async findOne(id: string) {
@@ -36,6 +43,58 @@ export class TasksService {
       .createQueryBuilder('task')
       .where('task.responsible_id = :userId', { userId })
       .getMany();
+  }
+
+  async findAll(authUser: User, query: QueryTasksDto): Promise<Task[]> {
+    // El usuario autenticado debe pertenecer al hogar que consulta.
+    // findOneBy del UHRService lanza NotFoundException si no existe,
+    // así que lo envolvemos para devolver un 403 más apropiado.
+    const membership = await this.uhrService
+      .findOneBy({ user_id: authUser.id, home_id: query.home_id })
+      .catch(() => null);
+
+    if (!membership) {
+      throw new ForbiddenException('No perteneces a este hogar');
+    }
+
+    // filtrar tarea de acuerdo a los parámetros recibidos
+    const qb = this.taskRepository
+      .createQueryBuilder('task')
+      .where('task.home_id = :homeId', { homeId: query.home_id });
+
+    if (query.responsible_id) {
+      qb.andWhere('task.responsible_id = :rid', { rid: query.responsible_id });
+    }
+
+    if (query.completed !== undefined) {
+      qb.andWhere('task.is_completed = :completed', {
+        completed: query.completed === 'true',
+      });
+    }
+
+    if (query.date === 'today') {
+      const { start, end } = this.getTodayRangeUtc();
+      // Por defecto filtra por completed_at; si date_field='due', usa limit_date
+      const column = query.date_field === 'due' ? 'task.limit_date' : 'task.completed_at';
+      qb.andWhere(`${column} >= :start AND ${column} < :end`, { start, end });
+    }
+
+    return qb.getMany();
+  }
+
+  // Calcula el rango [inicio, fin) del día actual en la zona del usuario,
+  // convertido a UTC para comparar contra columnas timestamptz en Postgres.
+  private getTodayRangeUtc(): { start: Date; end: Date } {
+    const now = new Date();
+    // startOfDay/endOfDay operan sobre la hora local del servidor; para ser
+    // correctos respecto a la zona del usuario, calculamos el día y lo
+    // convertimos desde esa zona a UTC.
+    const startLocal = startOfDay(now);
+    const endLocal = endOfDay(now);
+    return {
+      start: fromZonedTime(startLocal, APP_TIMEZONE),
+      end: fromZonedTime(endLocal, APP_TIMEZONE),
+    };
   }
 
   async update(id: string, updateTaskDto: UpdateTaskDto) {
@@ -64,7 +123,7 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    const user = await this.userRepository.findOneBy({ id: userId });
+    const user = await this.userService.findOne(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -73,7 +132,8 @@ export class TasksService {
     return this.taskRepository.save(task);
   }
 
-  // New method to assign a task to a random user (automatically)
+  // TODO: remover este método, será el algoritmo de asignación automática de tareas 
+  // basado en preferencias y disponibilidad de los miembros de la casa
   async assignTaskToRandomUser(taskId: string) {
     try {
       const task = await this.taskRepository.findOneBy({ id: taskId });
@@ -83,7 +143,7 @@ export class TasksService {
 
       // todo: implement logic for selecting a random user from the same authenticated user's house
       // todo-2: assign task based on house members's preferences
-      const users = await this.userRepository.find();
+      const users = await this.userService.findAll();
       if (users.length === 0) {
         throw new NotFoundException('No users available to assign the task');
       }
@@ -91,7 +151,7 @@ export class TasksService {
       const randomUser = users[Math.floor(Math.random() * users.length)];
       task.responsible_id = randomUser.id;
       return this.taskRepository.save(task);
-    } catch (error) {
+    } catch (error: any) {
       throw new BadRequestException('Failed to assign task to a random user', error.message);
     }
   }
