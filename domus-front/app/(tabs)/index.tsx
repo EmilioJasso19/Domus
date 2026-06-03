@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
 	View,
 	Text,
@@ -8,7 +8,7 @@ import {
 	Keyboard,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, Redirect, useLocalSearchParams } from "expo-router";
 import {
 	BottomSheetModal,
 	BottomSheetModalProvider,
@@ -20,15 +20,18 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Toast from "react-native-toast-message";
 import axios from "@/api/axios";
 import { useAuthStore } from "@/store/auth-store";
+import { useHomeStore } from "@/store/home-store";
 
 type SheetMode = "create" | "join";
 
 export default function SetupHouseholdScreen() {
+	const { initialMode } = useLocalSearchParams();
 	const router = useRouter();
 	const sheetRef = useRef<BottomSheetModal>(null);
-	const { user, households } = useAuthStore();
+	const { user } = useAuthStore();
+	const { households, setHouseholds, selectHome, refreshHomes, selectedHome } = useHomeStore();
 
-	const [mode, setMode] = useState<SheetMode>("create");
+	const [mode, setMode] = useState<SheetMode>(initialMode === "join" ? "join" : "create");
 	const [value, setValue] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 
@@ -72,43 +75,66 @@ export default function SetupHouseholdScreen() {
 		setIsLoading(true);
 		try {
 			if (mode === "create") {
-				await axios.post("/homes", { name: trimmed, user });
-				Toast.show({ type: "success", text1: "Hogar creado" });
+				await axios.post("/homes", {
+					name: trimmed,
+					user,
+				});
+
+				Toast.show({
+					type: "success",
+					text1: "Hogar creado",
+				});
 			} else {
-				await axios.post("/homes/join", { code: trimmed, user });
-				Toast.show({ type: "success", text1: "Te uniste al hogar" });
+				await axios.post("/homes/join", {
+					invitation_code: trimmed,
+					user,
+				});
+
+				Toast.show({
+					type: "success",
+					text1: "Te uniste al hogar",
+				});
+			}
+
+			const homes = await refreshHomes();
+
+			if (homes.length > 0) {
+				await selectHome(homes[homes.length - 1]);
 			}
 
 			closeSheet();
+
 			router.replace("/home");
 		} catch (e: any) {
 			let message = "Ocurrió un error inesperado.";
 
-			if (mode === "join" && e.response.status === 404) {
+			if (mode === "join" && e.response?.status === 404) {
 				message = "El código no es válido o no existe.";
 			} else {
-				message = e.response.data?.message || message;
+				message =
+					e.response?.data?.message ||
+					e.message ||
+					message;
 			}
 
-			Toast.show({ type: "error", text1: "Error", text2: message });
+			Toast.show({
+				type: "error",
+				text1: "Error",
+				text2: message,
+			});
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
 	const isCreate = mode === "create";
-	
+
 	if (!user) {
 		return (
 			<View className="flex-1 items-center justify-center bg-slate-50">
 				<ActivityIndicator size="large" color="#3B82F6" />
 			</View>
 		);
-	}
-
-	if (households && households.length > 0) {
-		router.replace("/(tabs)"); // ajusta a tu ruta principal
-		return null;
 	}
 
 	return (

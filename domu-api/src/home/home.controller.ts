@@ -30,9 +30,14 @@ export class HomeController {
     return this.homeService.join(joinHomeDto, user);
   }
 
-  @Get()
+  @Get('/me')
   findAll(@AuthUser() user) {
     return this.homeService.findAll(user);
+  }
+
+  @Get('members/:id')
+  findMembers(@Param('id') id: string, @AuthUser() user) {
+    return this.homeService.findMembers(id, user);
   }
 
   @Get(':id')
@@ -52,10 +57,5 @@ export class HomeController {
   @Delete(':id')
   async remove(@AuthUser() user, @Param('id') id: string) {
     return this.homeService.remove(id, user);
-  }
-
-  @Get('/members/:id')
-  findMembers(@Param('id') id: string, @AuthUser() user) {
-    return this.homeService.findMembers(id, user);
   }
 }

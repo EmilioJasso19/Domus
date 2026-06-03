@@ -7,7 +7,11 @@ id: number;
 	is_completed: boolean;
 };
 
-export type HomeItem = { id: string; name: string };
+export type HomeItem = {
+	id: string;
+	name: string;
+	invitation_code?: string;
+};
 
 export type Activity = {
 	id: string;
@@ -17,4 +21,16 @@ export type Activity = {
 	timeAgo: string;
 };
 
-export type Household = { id: string; name: string };
+export type Household = {
+	id: string;
+	name: string;
+	invitation_code?: string;
+};
+
+export type HouseholdMember = {
+	user_id: string;
+	name: string;
+	paternal_surname: string;
+	maternal_surname?: string | null;
+	role: string;
+};

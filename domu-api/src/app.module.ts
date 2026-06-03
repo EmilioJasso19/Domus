@@ -10,6 +10,9 @@ import { HomeModule } from './home/home.module';
 import { AuthModule } from './auth/auth.module';
 import { UserHomeRoleModule } from './user-home-role/user-home-role.module';
 import { RoleModule } from './role/role.module';
+import { AssignmentModule } from './assignment/assignment.module';
+import { SchedulesModule } from './schedules/schedules.module';
+import { PreferencesModule } from './preferences/preferences.module';
 
 @Module({
   imports: [
@@ -32,6 +35,9 @@ import { RoleModule } from './role/role.module';
     AuthModule,
     UserHomeRoleModule,
     RoleModule,
+    AssignmentModule,
+    SchedulesModule,
+    PreferencesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

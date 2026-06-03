@@ -54,6 +54,18 @@ export class UserHomeRoleService {
         });
     }
 
+    async findAllByHome(homeId: string) {
+        const home = await this.homeRepository.findOneBy({ id: homeId });
+        if (!home) {
+            throw new NotFoundException('Home not found');
+        }
+
+        return this.userHomeRoleRepository.find({
+            where: { home_id: homeId },
+            relations: ['user', 'role']
+        });
+    }
+
     async findOne(userId: string, homeId: string) {
         const userHomeRole = await this.userHomeRoleRepository.findOne({
             where: { user_id: userId, home_id: homeId },
@@ -70,6 +82,10 @@ export class UserHomeRoleService {
         if (!userHomeRole) {
             throw new NotFoundException('UserHomeRole not found');
         }
+        return userHomeRole;
+    }
+    async exists(condition: Partial<UserHomeRole>) {
+        const userHomeRole = await this.userHomeRoleRepository.findOneBy(condition);
         return userHomeRole;
     }
 

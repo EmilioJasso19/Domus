@@ -72,15 +72,17 @@ export class HomeService {
     const home = await this.homeRepository.findOneBy({
       invitation_code: joinHomeDto.invitation_code,
     });
+
     if (!home) {
       throw new NotFoundException('El código de invitación no es válido');
     }
 
     // Verificar que el usuario no pertenezca ya a este hogar
-    const existing = await this.userHomeRoleService.findOneBy({
+    const existing = await this.userHomeRoleService.exists({
       user_id: user.id,
       home_id: home.id,
     });
+
     if (existing) {
       throw new ConflictException('Ya perteneces a este hogar');
     }
@@ -182,7 +184,7 @@ export class HomeService {
       throw new BadRequestException('User does not belong to this home');
     }
 
-    const members = await this.userHomeRoleService.findAll(homeId);
+    const members = await this.userHomeRoleService.findAllByHome(homeId);
     return members.map((m) => ({
       user_id: m.user_id,
       name: m.user.name,

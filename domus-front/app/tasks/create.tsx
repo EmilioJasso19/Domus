@@ -75,10 +75,9 @@ export default function CreateTask() {
 	useEffect(() => {
 		if (!householdIdSelected) return;
 		axios
-			.get(`/home/members/${householdIdSelected}`)
+			.get(`/homes/members/${householdIdSelected}`)
 			.then((res) => {
 				setMembers(res.data)
-				console.log("Miembros cargados:", res.data);
 			})
 			.catch(() => setMembers([]));
 	}, [householdIdSelected]);
@@ -116,13 +115,11 @@ export default function CreateTask() {
 			due_time: displayTime ?? undefined,
 			frequency_type: frequency,
 		};
-		console.log("Payload a enviar:", payload);
 
 		try {
 			await axios.post("/tasks", payload);
 			router.back();
 		} catch (e) {
-			console.log("Error al crear tarea:", e);
 			setSubmitError("Error al crear la tarea. Por favor, inténtalo de nuevo.");
 		} finally {
 			setIsSubmitting(false);
@@ -132,14 +129,14 @@ export default function CreateTask() {
 	return (
 		<View className="flex-1 bg-slate-50">
 			{/* ── Header propio ── */}
-			<View className="flex-row items-center px-5 pt-14 pb-4">
+			<View className="flex-row items-center px-5 pt-5 pb-4">
 				<Pressable
 					onPress={() => router.back()}
 					className="w-9 h-9 items-center justify-center"
 				>
 					<ArrowLeft size={24} color="#111827" />
 				</Pressable>
-				<Text className="flex-1 text-center text-lg font-nunito-bold text-gray-900 -ml-9">
+				<Text className="flex-1 text-center text-xl font-nunito-bold text-gray-900 -ml-9">
 					Nueva tarea
 				</Text>
 			</View>

@@ -8,6 +8,7 @@ import { useAuthStore } from "@/store/auth-store";
 import Toast from 'react-native-toast-message';
 import { useFonts, Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold } from "@expo-google-fonts/nunito";
 import * as SplashScreen from "expo-splash-screen";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -41,14 +42,14 @@ function RootLayoutNav() {
 
 	return (
 		// <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-		<>
+		<SafeAreaView className="flex-1">
 			<Stack screenOptions={{ headerShown: false }}>
 				<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 				<Stack.Screen name="(auth)" options={{ headerShown: false }} />
 			</Stack>
 			<StatusBar style="auto" />
 			<Toast />
-		</>
+		</SafeAreaView>
 		// </ThemeProvider>
 	);
 }

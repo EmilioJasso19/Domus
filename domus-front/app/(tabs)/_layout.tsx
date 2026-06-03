@@ -46,9 +46,9 @@ export default function TabLayout() {
           }}
         />
 
-        {/* Tareas → explore.tsx */}
+        {/* Tareas → tasks.tsx */}
         <Tabs.Screen
-          name="explore"
+          name="tasks"
           options={{
             title: "Tareas",
             tabBarIcon: ({ color }) => <CheckSquare size={24} color={color} />,
@@ -66,22 +66,22 @@ export default function TabLayout() {
         /> */}
 
         {/* Familia → family.tsx */}
-        {/* <Tabs.Screen
+        <Tabs.Screen
           name="family"
           options={{
             title: "Familia",
             tabBarIcon: ({ color }) => <Users size={24} color={color} />,
           }}
-        /> */}
+        />
 
         {/* Perfil → profile.tsx */}
-        {/* <Tabs.Screen
+        <Tabs.Screen
           name="profile"
           options={{
             title: "Perfil",
             tabBarIcon: ({ color }) => <Settings size={24} color={color} />,
           }}
-        /> */}
+        />
       </Tabs>
 
       {/* ── FAB flotante: encima de la barra, sin ser una tab ── */}
@@ -89,7 +89,7 @@ export default function TabLayout() {
         onPress={() => router.push("/tasks/create")}
         className="absolute self-center w-14 h-14 rounded-full bg-blue-600 items-center justify-center shadow-lg shadow-blue-600/40 active:bg-blue-700"
         style={{
-          bottom: Platform.OS === "ios" ? 46 : 24,
+          bottom: Platform.OS === "ios" ? 46 : 40,
         }}
       >
         <Plus size={28} color="#fff" strokeWidth={2.5} />

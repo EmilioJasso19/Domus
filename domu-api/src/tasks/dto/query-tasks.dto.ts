@@ -6,7 +6,7 @@ export class QueryTasksDto {
 
   @IsOptional()
   @IsString()
-  responsible_id?: string;
+  user_id?: string;
 
   @IsOptional()
   @IsBooleanString()

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	View,
 	Text,
@@ -9,14 +9,13 @@ import {
 	Platform,
 	UIManager,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, Redirect } from "expo-router";
 import {
 	ChevronDown,
 	ChevronRight,
 	Clock,
 	User as UserIcon,
 	ShoppingCart,
-	Trophy,
 	Plus,
 	Home as HomeIcon,
 	Users as UsersIcon,
@@ -62,7 +61,7 @@ const MOCK_ACTIVITY: Activity[] = [
 export default function DashboardScreen() {
 	const router = useRouter();
 	const { user } = useAuthStore();
-    const { households, householdIdSelected, selectHome} = useHomeStore();
+	const { households, householdIdSelected, selectHome, setHouseholds, refreshHomes } = useHomeStore();
 	const sheetRef = useRef<BottomSheetModal>(null);
 
 	const [homes, setHomes] = useState<HomeItem[]>([]);
@@ -73,8 +72,8 @@ export default function DashboardScreen() {
 
 	const greeting = (() => {
 		const h = new Date().getHours();
-		if (h > 12) return "Buenos días";
-		if (h > 19) return "Buenas tardes";
+		if (h < 12) return "Buenos días";
+		if (h < 19) return "Buenas tardes";
 		return "Buenas noches";
 	})();
 
@@ -87,13 +86,13 @@ export default function DashboardScreen() {
 
 	useEffect(() => {
 		axios
-			.get("/homes")
+			.get("/homes/me")
 			.then((res) => setHomes(res.data))
 			.catch(() => setHomes([]));
 	}, []);
 
 	useEffect(() => {
-		if (!householdIdSelected) return;
+		if (!householdIdSelected) setHouseholds([...households]);
 		setIsLoading(true);
 
 		Promise.all([
@@ -104,7 +103,7 @@ export default function DashboardScreen() {
 					completed: false,
 				},
 			}),
-			
+
 			axios.get("/tasks", {
 				params: {
 					home_id: householdIdSelected,
@@ -116,7 +115,7 @@ export default function DashboardScreen() {
 		])
 			.then(([upcomingRes, completedRes]) => {
 				setUpcoming(upcomingRes.data);
-				setCompletedToday(completedRes.data);
+				setCompletedToday(completedRes.data)
 			})
 			.catch(() => {
 				setUpcoming([]);
@@ -148,6 +147,16 @@ export default function DashboardScreen() {
 		LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 		setShowCompleted((p) => !p);
 	};
+
+	useEffect(() => {
+		if (!householdIdSelected) {
+			router.replace("/");
+		}
+	}, [householdIdSelected]);
+
+	if (!householdIdSelected) {
+		return null;
+	}
 
 	return (
 		<GestureHandlerRootView className="flex-1">
@@ -258,7 +267,9 @@ export default function DashboardScreen() {
 								<Text className="text-sm font-nunito text-gray-700 flex-1">
 									<Text className="font-nunito-bold">{item.actor}</Text>{" "}
 									{item.action}{" "}
-									<Text className="font-nunito-semibold">'{item.target}'</Text>
+									<Text className="font-nunito-semibold">
+										{`'${item.target}'`}
+									</Text>
 								</Text>
 								<Text className="text-xs font-nunito text-gray-400">
 									{item.timeAgo}
@@ -287,21 +298,19 @@ export default function DashboardScreen() {
 									<Pressable
 										key={home.id}
 										onPress={() => handleSelectHome(home)}
-										className={`flex-row items-center gap-3 px-4 py-3 rounded-xl border ${
-											isSelected
-												? "border-blue-600 bg-blue-50"
-												: "border-gray-200 bg-white"
-										}`}
+										className={`flex-row items-center gap-3 px-4 py-3 rounded-xl border ${isSelected
+											? "border-blue-600 bg-blue-50"
+											: "border-gray-200 bg-white"
+											}`}
 									>
 										<View className="w-9 h-9 rounded-lg bg-blue-100 items-center justify-center">
 											<HomeIcon size={18} color="#2563EB" />
 										</View>
 										<Text
-											className={`text-base flex-1 ${
-												isSelected
-													? "font-nunito-bold text-blue-700"
-													: "font-nunito-semibold text-gray-800"
-											}`}
+											className={`text-base flex-1 ${isSelected
+												? "font-nunito-bold text-blue-700"
+												: "font-nunito-semibold text-gray-800"
+												}`}
 										>
 											{home.name}
 										</Text>
@@ -318,7 +327,12 @@ export default function DashboardScreen() {
 							<Pressable
 								onPress={() => {
 									sheetRef.current?.dismiss();
-									router.push("/(household)/setup?mode=create");
+									router.push({
+										pathname: "/",
+										params: {
+											initialMode: "create",
+										},
+									});
 								}}
 								className="flex-row items-center gap-3 px-4 py-3"
 							>
@@ -333,7 +347,12 @@ export default function DashboardScreen() {
 							<Pressable
 								onPress={() => {
 									sheetRef.current?.dismiss();
-									router.push("/(household)/setup?mode=join");
+									router.push({
+										pathname: "/",
+										params: {
+											initialMode: "join",
+										},
+									});
 								}}
 								className="flex-row items-center gap-3 px-4 py-3"
 							>

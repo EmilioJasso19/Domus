@@ -98,6 +98,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
 			// Delegar la responsabilidad de hogares al home-store
 			await useHomeStore.getState().setHouseholds(households ?? []);
+			router.push("/home");
 		} catch (e: any) {
 			let message = "Algo salió mal. Inténtalo de nuevo.";
 

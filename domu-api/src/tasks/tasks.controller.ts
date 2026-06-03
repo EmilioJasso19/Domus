@@ -22,16 +22,6 @@ export class TasksController {
     return this.tasksService.findAll(authUser, query);
   }
 
-  // @Get()
-  // findAll(@AuthUser() user: User, homeID: string) {
-  //   return this.tasksService.findAllByUserAndHome(user, homeID);
-  // }
-
-  // @Get('/home/:homeID')
-  // findAllByHome(homeID: string) {
-  //   return this.tasksService.findAllByHome(homeID);
-  // }
-
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.tasksService.findOne(id);
