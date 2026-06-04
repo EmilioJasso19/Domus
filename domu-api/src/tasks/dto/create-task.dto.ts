@@ -8,6 +8,7 @@ export class CreateTaskDto {
 
     @IsString()
     @MaxLength(100)
+    @MinLength(3)
     name!: string;
 
     @IsOptional()

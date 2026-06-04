@@ -11,7 +11,7 @@ import { AuthModule } from './auth/auth.module';
 import { UserHomeRoleModule } from './user-home-role/user-home-role.module';
 import { RoleModule } from './role/role.module';
 import { AssignmentModule } from './assignment/assignment.module';
-import { SchedulesModule } from './schedules/schedules.module';
+import { BlockedSchedulesModule } from './blocked-schedules/blocked-schedules.module';
 import { PreferencesModule } from './preferences/preferences.module';
 
 @Module({
@@ -36,7 +36,7 @@ import { PreferencesModule } from './preferences/preferences.module';
     UserHomeRoleModule,
     RoleModule,
     AssignmentModule,
-    SchedulesModule,
+    BlockedSchedulesModule,
     PreferencesModule,
   ],
   controllers: [AppController],

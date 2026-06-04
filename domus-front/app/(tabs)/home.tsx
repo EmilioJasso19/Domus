@@ -190,7 +190,7 @@ export default function DashboardScreen() {
 						<Text className="text-xl font-nunito-extrabold text-gray-900">
 							Próximas tareas
 						</Text>
-						<Pressable onPress={() => router.push("/explore")}>
+						<Pressable onPress={() => router.push("/tasks")}>
 							<Text className="text-sm font-nunito-semibold text-blue-600">
 								Ver todas
 							</Text>
