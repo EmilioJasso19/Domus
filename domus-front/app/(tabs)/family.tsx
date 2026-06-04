@@ -18,9 +18,8 @@ import { HouseholdMember, HomeItem } from "@/constants/types";
 import { buildMockWeeklyActivity } from "@/mocks/mock-family-weekly-activity";
 import { useAuthStore } from "@/store/auth-store";
 import { useHomeStore } from "@/store/home-store";
-
-const BACKGROUND = "#FAFAF8";
-const BLUE = "#3A63FA";
+import { BACKGROUND, BLUE } from "@/constants/colors";
+import { EmptyState } from "@/components/empty-state";
 
 export default function FamilyScreen() {
 	const { user } = useAuthStore();
@@ -128,8 +127,13 @@ export default function FamilyScreen() {
 					/>
 				}
 			>
+
+				<Text className="text-[26px] font-nunito-extrabold text-gray-900 mb-6">
+					Mi familia
+				</Text>
+
 				{!householdIdSelected ? (
-					<EmptyHouseholdState />
+					<EmptyState title="Selecciona un hogar" subtitle="Cuando tengas un hogar activo, aquí verás el código de invitación y sus integrantes." />
 				) : (
 					<View className="gap-8">
 						<FamilyInvitationCard

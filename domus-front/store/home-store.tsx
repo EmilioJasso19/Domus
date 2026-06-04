@@ -52,7 +52,6 @@ export const useHomeStore = create<HomeState>((set, get) => ({
 
 	refreshHomes: async () => {
 		const response = await axios.get('/homes/me');
-		console.log("Fetched homes:", response.data); // Agrega este log para verificar la respuesta
 
 		const households: Household[] = response.data;
 

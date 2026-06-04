@@ -21,10 +21,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useAuthStore } from "@/store/auth-store";
 import { useHomeStore } from "@/store/home-store";
 import { Household } from "@/constants/types";
-
-const BACKGROUND = "#FAFAF8";
-const BLUE = "#3A63FA";
-const ERROR = "#DC2626";
+import { ERROR, BACKGROUND, BLUE } from "@/constants/colors";
 
 const cardShadow = {
 	shadowColor: "#111827",
@@ -98,24 +95,6 @@ export default function ProfileScreen() {
 		<GestureHandlerRootView className="flex-1">
 			<BottomSheetModalProvider>
 				<View className="flex-1" style={{ backgroundColor: BACKGROUND }}>
-					{/* ── Header ── */}
-					<View className="flex-row items-center justify-between px-5 pt-4 pb-3">
-						<Text
-							className="text-xl font-nunito-bold"
-							style={{ color: BLUE }}
-						>
-							Perfil
-						</Text>
-						<Pressable
-							accessibilityRole="button"
-							accessibilityLabel="Configuración"
-							hitSlop={8}
-							className="h-9 w-9 items-center justify-center"
-						>
-							<Settings size={22} color="#374151" />
-						</Pressable>
-					</View>
-
 					<ScrollView
 						className="flex-1"
 						contentContainerClassName="px-5 pb-32 pt-6"

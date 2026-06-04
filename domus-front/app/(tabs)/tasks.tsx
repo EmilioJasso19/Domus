@@ -10,8 +10,7 @@ import {
 	Platform,
 	UIManager,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { ArrowLeft, Search } from "lucide-react-native";
+import { Search } from "lucide-react-native";
 import Toast from "react-native-toast-message";
 import { getTasks, toggleTaskCompletion, type ApiTask } from "@/api/tasks";
 import { getHomeMembers } from "@/api/homes";
@@ -20,6 +19,9 @@ import { useHomeStore } from "@/store/home-store";
 import { useAuthStore } from "@/store/auth-store";
 import { TaskCard, type TaskCardModel } from "@/components/tasks/task-card";
 import { TaskSection } from "@/components/tasks/task-section";
+import { BACKGROUND, BLUE } from "@/constants/colors";
+import { SectionEmpty } from "@/components/section-empty";
+import { EmptyState } from "@/components/empty-state";
 
 // LayoutAnimation (used by the collapsible sections) needs to be enabled on Android.
 if (
@@ -28,9 +30,6 @@ if (
 ) {
 	UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-const BACKGROUND = "#FAFAF8";
-const BLUE = "#3A63FA";
 
 type TaskFilter = "pending" | "completed";
 
@@ -62,7 +61,6 @@ function buildDateBadge(
 }
 
 export default function TasksScreen() {
-	const router = useRouter();
 	const { householdIdSelected } = useHomeStore();
 	const { user } = useAuthStore();
 
@@ -354,35 +352,6 @@ function FilterPill({
 				{label}
 			</Text>
 		</Pressable>
-	);
-}
-
-function SectionEmpty({ message }: { message: string }) {
-	return (
-		<View className="rounded-2xl bg-white px-4 py-5">
-			<Text className="text-center text-sm font-nunito text-gray-400">
-				{message}
-			</Text>
-		</View>
-	);
-}
-
-function EmptyState({
-	title,
-	subtitle,
-}: {
-	title: string;
-	subtitle: string;
-}) {
-	return (
-		<View className="mt-6 items-center justify-center rounded-3xl bg-white px-8 py-10">
-			<Text className="text-center text-lg font-nunito-bold text-gray-900">
-				{title}
-			</Text>
-			<Text className="mt-2 text-center text-base font-nunito leading-6 text-gray-500">
-				{subtitle}
-			</Text>
-		</View>
 	);
 }
 

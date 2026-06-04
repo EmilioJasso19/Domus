@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState, useEffect, useCallback } from "react"; 
 import {
 	View,
 	Text,
@@ -13,6 +13,12 @@ import { ArrowLeft, Clock, Plus, ChevronDown, ChevronUp } from "lucide-react-nat
 import { Calendar } from "react-native-calendars";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { SavedBlockCard } from "@/components/profile/saved-block-card";
+import axios from "@/api/axios";
+import { useHomeStore } from "@/store/home-store";
+import { BACKGROUND, BLUE, GREEN, GREEN_PRESSED } from "@/constants/colors";
+import { formatTime } from "@/helpers/format-time";
+import { SectionEmpty } from "@/components/section-empty";
+import Toast from 'react-native-toast-message';
 
 if (
 	Platform.OS === "android" &&
@@ -20,11 +26,6 @@ if (
 ) {
 	UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-const BACKGROUND = "#FAFAF8";
-const BLUE = "#3A63FA";
-const GREEN = "#86E29A";
-const GREEN_PRESSED = "#6FD389";
 
 type Mode = "recurrent" | "temporal";
 type PickerTarget = "recFrom" | "recTo" | "tempFrom" | "tempTo" | null;
@@ -45,21 +46,14 @@ type TemporalBlock = {
 };
 
 const DAYS = [
-	{ id: 0, label: "L", name: "Lunes" },
-	{ id: 1, label: "M", name: "Martes" },
-	{ id: 2, label: "M", name: "Miércoles" },
-	{ id: 3, label: "J", name: "Jueves" },
-	{ id: 4, label: "V", name: "Viernes" },
-	{ id: 5, label: "S", name: "Sábado" },
-	{ id: 6, label: "D", name: "Domingo" },
+	{ id: 0, label: "L", name: "Lunes", api_value: "monday" },
+	{ id: 1, label: "M", name: "Martes", api_value: "tuesday" },
+	{ id: 2, label: "M", name: "Miércoles", api_value: "wednesday" },
+	{ id: 3, label: "J", name: "Jueves", api_value: "thursday" },
+	{ id: 4, label: "V", name: "Viernes", api_value: "friday" },
+	{ id: 5, label: "S", name: "Sábado", api_value: "saturday" },
+	{ id: 6, label: "D", name: "Domingo", api_value: "sunday" },
 ];
-
-const formatTime = (date: Date) =>
-	date.toLocaleTimeString("en-US", {
-		hour: "numeric",
-		minute: "2-digit",
-		hour12: true,
-	});
 
 const makeTime = (hours: number, minutes: number) => {
 	const d = new Date();
@@ -78,8 +72,18 @@ const shortDate = (iso: string) =>
 
 const today = new Date().toISOString().split("T")[0];
 
+const apiTimeToDisplay = (t: string) => {
+	const [h, m] = t.split(":").map(Number);
+	const period = h >= 12 ? "PM" : "AM";
+	const hour12 = h % 12 === 0 ? 12 : h % 12;
+	return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
+};
+
+const apiDayToId = (api: string) => DAYS.find((d) => d.api_value === api)?.id ?? 0;
+
 export default function AvailabilityScreen() {
 	const router = useRouter();
+	const { householdIdSelected } = useHomeStore();
 
 	const [mode, setMode] = useState<Mode>("recurrent");
 	const [pickerTarget, setPickerTarget] = useState<PickerTarget>(null);
@@ -88,9 +92,7 @@ export default function AvailabilityScreen() {
 	const [selectedDays, setSelectedDays] = useState<number[]>([1]);
 	const [recFrom, setRecFrom] = useState<Date>(makeTime(18, 0));
 	const [recTo, setRecTo] = useState<Date>(makeTime(21, 0));
-	const [recBlocks, setRecBlocks] = useState<RecurrentBlock[]>([
-		{ id: "rec-1", dayId: 1, from: "6:00 PM", to: "9:00 PM" },
-	]);
+	const [recBlocks, setRecBlocks] = useState<RecurrentBlock[]>([]);
 
 	// ── Temporal ──
 	const [startDate, setStartDate] = useState("");
@@ -100,6 +102,49 @@ export default function AvailabilityScreen() {
 	const [tempBlocks, setTempBlocks] = useState<TemporalBlock[]>([]);
 	const [showStartCal, setShowStartCal] = useState(false);
 	const [showEndCal, setShowEndCal] = useState(false);
+
+	const [loading, setLoading] = useState(false);
+
+	const fetchBlocks = useCallback(async () => {
+		if (!householdIdSelected) return;
+		setLoading(true);
+		try {
+			const { data } = await axios.get("/availability", {
+				params: { home_id: householdIdSelected },
+			});
+
+			const recurrent: RecurrentBlock[] = [];
+			const temporal: TemporalBlock[] = [];
+
+			for (const item of data) {
+				const from = apiTimeToDisplay(item.start_time);
+				const to = apiTimeToDisplay(item.end_time);
+
+				if (item.start_date && item.end_date) {
+					temporal.push({
+						id: String(item.id),
+						startDate: item.start_date,
+						endDate: item.end_date,
+						from,
+						to,
+					});
+				} else {
+					recurrent.push({ id: String(item.id), dayId: apiDayToId(item.day), from, to });
+				}
+			}
+
+			setRecBlocks(recurrent.sort((a, b) => a.dayId - b.dayId));
+			setTempBlocks(temporal);
+		} catch (e) {
+			console.error("Error al cargar bloques:", e);
+		} finally {
+			setLoading(false);
+		}
+	}, [householdIdSelected]);
+
+	useEffect(() => {
+		fetchBlocks();
+	}, [fetchBlocks]);
 
 	const switchMode = (next: Mode) => {
 		LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -142,39 +187,80 @@ export default function AvailabilityScreen() {
 		}
 	};
 
-	const handleAddRecurrent = () => {
-		if (selectedDays.length === 0) return;
-		const from = formatTime(recFrom);
-		const to = formatTime(recTo);
+	const handleAddRecurrent = async () => {
+		if (selectedDays.length === 0 || !householdIdSelected) return;
+		const start_time = formatTime(recFrom);
+		const end_time = formatTime(recTo);
 
-		setRecBlocks((prev) => {
-			const next = [...prev];
-			selectedDays.forEach((dayId) => {
-				const idx = next.findIndex((b) => b.dayId === dayId);
-				if (idx >= 0) {
-					next[idx] = { ...next[idx], from, to };
-				} else {
-					next.push({ id: `rec-${dayId}-${Date.now()}`, dayId, from, to });
-				}
+		try {
+			await Promise.all(
+				selectedDays.map((dayId) =>
+					axios.post("/availability", {
+						home_id: householdIdSelected,
+						day: DAYS.find((d) => d.id === dayId)?.api_value,
+						start_time,
+						end_time,
+					}),
+				),
+			);
+			await fetchBlocks(); // refresca desde la BD
+			Toast.show({
+				type: 'success',
+				text1: 'Bloques recurrentes guardados',
 			});
-			return next.sort((a, b) => a.dayId - b.dayId);
-		});
+			setSelectedDays([]);
+		} catch (e) {
+			console.error("Error al guardar recurrente:", e);
+			Toast.show({
+				type: 'error',
+				text1: 'Error al guardar bloques recurrentes',
+			});
+		}
 	};
 
-	const handleAddTemporal = () => {
-		if (!startDate || !endDate) return;
-		setTempBlocks((prev) => [
-			...prev,
-			{
-				id: `temp-${Date.now()}`,
-				startDate,
-				endDate,
-				from: formatTime(tempFrom),
-				to: formatTime(tempTo),
-			},
-		]);
-		setStartDate("");
-		setEndDate("");
+	const handleAddTemporal = async () => {
+		if (!startDate || !endDate || !householdIdSelected) return;
+
+		try {
+			await axios.post("/availability", {
+				home_id: householdIdSelected,
+				day: DAYS[0].api_value,
+				start_time: formatTime(tempFrom),
+				end_time: formatTime(tempTo),
+				start_date: startDate,
+				end_date: endDate,
+			});
+			await fetchBlocks();
+			Toast.show({
+				type: 'success',
+				text1: 'Bloque temporal guardado',
+			});
+			setStartDate("");
+			setEndDate("");
+		} catch (e) {
+			console.error("Error al guardar temporal:", e);
+			Toast.show({
+				type: 'error',
+				text1: 'Error al guardar bloque temporal',
+			});
+		}
+	};
+
+	const handleDeleteBlock = async (id: string) => {
+		try {
+			await axios.delete(`/availability/${id}`);
+			await fetchBlocks();
+			Toast.show({
+				type: 'success',
+				text1: 'Bloque eliminado',
+			});
+		} catch (e) {
+			console.error("Error al eliminar bloque:", e);
+			Toast.show({
+				type: 'error',
+				text1: 'Error al eliminar bloque',
+			});
+		}
 	};
 
 	const canAddTemporal = Boolean(startDate && endDate);
@@ -218,9 +304,8 @@ export default function AvailabilityScreen() {
 								onPress={() => switchMode(option.key)}
 								accessibilityRole="button"
 								accessibilityState={{ selected: active }}
-								className={`h-11 flex-1 items-center justify-center rounded-xl ${
-									active ? "bg-white" : ""
-								}`}
+								className={`h-11 flex-1 items-center justify-center rounded-xl ${active ? "bg-white" : ""
+									}`}
 							>
 								<Text
 									className="text-base"
@@ -254,9 +339,8 @@ export default function AvailabilityScreen() {
 										accessibilityRole="button"
 										accessibilityState={{ selected: active }}
 										accessibilityLabel={day.name}
-										className={`h-10 w-10 items-center justify-center rounded-full ${
-											active ? "" : "bg-gray-200"
-										}`}
+										className={`h-10 w-10 items-center justify-center rounded-full ${active ? "" : "bg-gray-200"
+											}`}
 										style={active ? { backgroundColor: BLUE } : undefined}
 									>
 										<Text
@@ -298,7 +382,7 @@ export default function AvailabilityScreen() {
 							Bloques Guardados
 						</Text>
 						{recBlocks.length === 0 ? (
-							<EmptyBlocks />
+							<SectionEmpty message="No hay bloques recurrentes guardados." />
 						) : (
 							<View className="gap-3">
 								{recBlocks.map((block) => (
@@ -307,9 +391,7 @@ export default function AvailabilityScreen() {
 										title={DAYS[block.dayId].name}
 										subtitle={`${block.from} - ${block.to}`}
 										onDelete={() =>
-											setRecBlocks((prev) =>
-												prev.filter((b) => b.id !== block.id),
-											)
+											handleDeleteBlock(block.id)
 										}
 									/>
 								))}
@@ -415,7 +497,7 @@ export default function AvailabilityScreen() {
 							Bloques Guardados
 						</Text>
 						{tempBlocks.length === 0 ? (
-							<EmptyBlocks />
+							<SectionEmpty message="No hay bloques temporales guardados." />
 						) : (
 							<View className="gap-3">
 								{tempBlocks.map((block) => (
@@ -427,9 +509,7 @@ export default function AvailabilityScreen() {
 										subtitle={`${block.from} - ${block.to}`}
 										accentColor="#1A7330"
 										onDelete={() =>
-											setTempBlocks((prev) =>
-												prev.filter((b) => b.id !== block.id),
-											)
+											handleDeleteBlock(block.id)
 										}
 									/>
 								))}
@@ -532,9 +612,8 @@ function DateField({
 				className="h-14 flex-row items-center justify-between rounded-2xl border border-gray-200 bg-white px-4"
 			>
 				<Text
-					className={`text-base font-nunito-semibold ${
-						hasValue ? "text-gray-900" : "text-gray-400"
-					}`}
+					className={`text-base font-nunito-semibold ${hasValue ? "text-gray-900" : "text-gray-400"
+						}`}
 				>
 					{value}
 				</Text>
@@ -576,15 +655,5 @@ function AddButton({
 			<Plus size={20} color="#111827" strokeWidth={2.5} />
 			<Text className="text-base font-nunito-bold text-gray-900">{label}</Text>
 		</Pressable>
-	);
-}
-
-function EmptyBlocks() {
-	return (
-		<View className="rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-6">
-			<Text className="text-center text-sm font-nunito text-gray-400">
-				Aún no has guardado bloques de disponibilidad.
-			</Text>
-		</View>
 	);
 }

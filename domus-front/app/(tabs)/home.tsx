@@ -31,6 +31,7 @@ import axios from "@/api/axios";
 import { useAuthStore } from "@/store/auth-store";
 import { HomeItem, Task, Activity } from "@/constants/types";
 import { useHomeStore } from "@/store/home-store";
+import { BACKGROUND } from "@/constants/colors";
 
 // Habilitar LayoutAnimation en Android (para el desplegable)
 if (
@@ -162,9 +163,10 @@ export default function DashboardScreen() {
 		<GestureHandlerRootView className="flex-1">
 			<BottomSheetModalProvider>
 				<ScrollView
-					className="flex-1 bg-slate-50"
+					className="flex-1"
 					contentContainerClassName="px-5 pt-4 pb-8"
 					showsVerticalScrollIndicator={false}
+					style={{ backgroundColor: BACKGROUND }}
 				>
 					{/* ── Selector de casa ── */}
 					<Pressable
@@ -253,30 +255,9 @@ export default function DashboardScreen() {
 					)}
 
 					{/* ── Actividad reciente (MOCK) ── */}
-					<Text className="text-base font-nunito-bold text-gray-700 mb-4">
-						Actividad reciente
+					<Text className="text-xl font-nunito-extrabold text-gray-900 mb-4">
+						Mascota
 					</Text>
-					<View className="gap-4">
-						{MOCK_ACTIVITY.map((item) => (
-							<View key={item.id} className="flex-row items-center gap-3">
-								<View className="w-8 h-8 rounded-full bg-blue-100 items-center justify-center">
-									<Text className="text-xs font-nunito-bold text-blue-700">
-										{item.actor[0]}
-									</Text>
-								</View>
-								<Text className="text-sm font-nunito text-gray-700 flex-1">
-									<Text className="font-nunito-bold">{item.actor}</Text>{" "}
-									{item.action}{" "}
-									<Text className="font-nunito-semibold">
-										{`'${item.target}'`}
-									</Text>
-								</Text>
-								<Text className="text-xs font-nunito text-gray-400">
-									{item.timeAgo}
-								</Text>
-							</View>
-						))}
-					</View>
 				</ScrollView>
 
 				{/* ── Bottom Sheet: selector de casa ── */}

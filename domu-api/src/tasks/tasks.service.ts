@@ -62,9 +62,7 @@ export class TasksService {
       .createQueryBuilder('task')
       .where('task.home_id = :homeId', { homeId: query.home_id });
 
-      console.log("Querying tasks with parameters:", query);
     if (query.user_id) {
-      console.log("Filtering by user_id:", query.user_id);
       qb.andWhere('task.responsible_id = :uid', { uid: query.user_id });
     }
 

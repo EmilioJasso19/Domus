@@ -7,9 +7,7 @@ import {
 	INITIAL_TASK_PREFERENCES,
 	type PreferenceValue,
 } from "@/mocks/mock-task-preferences";
-
-const BACKGROUND = "#FAFAF8";
-const BLUE = "#3A63FA";
+import { BACKGROUND, BLUE } from "@/constants/colors";
 
 export default function TaskPreferencesScreen() {
 	const router = useRouter();

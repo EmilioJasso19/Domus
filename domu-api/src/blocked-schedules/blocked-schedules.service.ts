@@ -59,9 +59,9 @@ export class BlockedSchedulesService {
     );
   }
 
-  findAll(user: User) {
+  findAll(user: User, homeId?: string) {
     return this.blockedScheduleRepository.find({
-      where: { user_id: user.id },
+      where: { user_id: user.id, ...(homeId ? { home_id: homeId } : {}) },
     });
   }
 
