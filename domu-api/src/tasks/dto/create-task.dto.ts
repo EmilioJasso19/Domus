@@ -21,12 +21,4 @@ export class CreateTaskDto {
 
     @IsEnum(FrequencyType)
     frequency_type!: FrequencyType;
-
-    @IsBoolean()
-    @IsOptional()
-    is_completed?: boolean;
-
-    @IsBoolean()
-    @IsOptional()
-    is_strict?: boolean;
 }

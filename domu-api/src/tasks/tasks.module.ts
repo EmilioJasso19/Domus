@@ -11,5 +11,6 @@ import { UserHomeRoleModule } from '@/user-home-role/user-home-role.module';
   imports: [TypeOrmModule.forFeature([Task]), UsersModule, HomeModule, UserHomeRoleModule],
   controllers: [TasksController],
   providers: [TasksService],
+  exports: [TasksService],
 })
 export class TasksModule {}

@@ -3,7 +3,7 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Task } from './entities/task.entity';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { UsersService } from '@/users/users.service';
 import { User } from '@/users/entities/user.entity';
@@ -42,6 +42,13 @@ export class TasksService {
     return this.taskRepository
       .createQueryBuilder('task')
       .where('task.responsible_id = :userId', { userId })
+      .getMany();
+  }
+
+  async findAllByHome(homeId: string) {
+    return this.taskRepository
+      .createQueryBuilder('task')
+      .where('task.home_id = :homeId', { homeId })
       .getMany();
   }
 
@@ -173,4 +180,12 @@ export class TasksService {
 
   // TODO: implement method to get a brief about task completion 
   // TODO-CONTINUE: for members of the house (percentage/quantity of completed tasks)
+
+  async findManyByIds(ids: string[]) {
+    return this.taskRepository.find({
+      where: {
+        id: In(ids),
+      },
+    });
+  }
 }

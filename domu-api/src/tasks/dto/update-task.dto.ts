@@ -6,8 +6,4 @@ export class UpdateTaskDto extends PartialType(CreateTaskDto) {
     @IsOptional()
     @IsString()
     responsible_id?: string;
-
-    @IsOptional()
-    @IsString()
-    evidence_path?: string;
 }

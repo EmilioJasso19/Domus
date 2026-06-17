@@ -6,6 +6,7 @@ import { UserHomeRole } from '@/user-home-role/entities/user-home-role.entity';
 import { Home } from '@/home/entities/home.entity';
 import { Role } from '@/role/entities/role.entity';
 import { BlockedSchedule } from '@/blocked-schedules/entities/blocked-schedule.entity';
+import { Preference } from '@/preferences/entities/preference.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -14,7 +15,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME || 'postgres',
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME || 'domus-db',
-  entities: [User, Task, Home, Role, UserHomeRole, BlockedSchedule], // TODO: entities: ['dist/**/*.entity.js'],
+  entities: [User, Task, Home, Role, UserHomeRole, BlockedSchedule, Preference], // TODO: entities: ['dist/**/*.entity.js'],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
 });

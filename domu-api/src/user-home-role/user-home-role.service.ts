@@ -84,6 +84,7 @@ export class UserHomeRoleService {
         }
         return userHomeRole;
     }
+
     async exists(condition: Partial<UserHomeRole>) {
         const userHomeRole = await this.userHomeRoleRepository.findOneBy(condition);
         return userHomeRole;

@@ -42,7 +42,7 @@ export class HomeService {
       const home = queryRunner.manager.create(Home, {
         ...createHomeDto,
         invitation_code: nanoid(6),
-        user_id: user.id,
+        createdBy: user,
         points: 0,
       });
       await queryRunner.manager.save(home);

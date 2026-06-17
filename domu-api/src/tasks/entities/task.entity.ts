@@ -45,8 +45,7 @@ export class Task {
   })
   frequency_type!: FrequencyType;
 
-  @Column({ type: 'boolean', default: false })
-  is_completed!: boolean;
+  // TODO: physical effort column
 
   @Column({ type: 'timestamptz', nullable: true })
   completed_at!: Date;

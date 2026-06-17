@@ -34,3 +34,19 @@ export type HouseholdMember = {
 	maternal_surname?: string | null;
 	role: string;
 };
+
+export type Preference = {
+	user_id: string;
+	task_id: string;
+	score: number; // -1 = dislike, 0 = neutral, 1 = like
+	task: {
+		id: string;
+		name: string;
+	};
+};
+
+// Item enviado al backend al guardar preferencias (POST /preferences/many/:homeId).
+export type PreferencePayloadItem = {
+	task_id: string;
+	score: number;
+};

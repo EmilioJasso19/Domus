@@ -7,11 +7,8 @@ export class Home {
     id!: string;
 
     @ManyToOne(() => User, { nullable: false })
-    @JoinColumn({ name: 'user_id' })
-    user!: User;
-
-    @Column({ type: 'bigint', nullable: false })
-    user_id!: string;
+    @JoinColumn({ name: 'created_by' })
+    createdBy!: User;
 
     @Column({ type: 'varchar', length: 100 })
     name!: string;
