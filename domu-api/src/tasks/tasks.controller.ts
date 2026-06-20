@@ -17,21 +17,16 @@ export class TasksController {
     return this.tasksService.create(createTaskDto, user);
   }
 
+  // Plantillas del hogar. El listado accionable (por fecha/estado/responsable)
+  // se consume desde GET /task-occurrences.
   @Get()
-  findAll(@AuthUser() authUser, @Query() query: QueryTasksDto) {
+  findAll(@AuthUser() authUser: User, @Query() query: QueryTasksDto) {
     return this.tasksService.findAll(authUser, query);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.tasksService.findOne(id);
-  }
-
-  @Get('/user/:userId')
-  findAllByUser(
-    @Param('userId') userId: string,
-  ) {
-    return this.tasksService.findAllByUser(userId);
   }
 
   @Patch(':id')
@@ -42,28 +37,5 @@ export class TasksController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.tasksService.remove(id);
-  }
-
-  @Patch(':taskId/assign/:userId')
-  assignTaskToUser(
-    @Param('taskId') taskId: string,
-    @Param('userId') userId: string,
-  ) {
-    return this.tasksService.assignTaskToUser(taskId, userId);
-  }
-
-  @Patch(':taskId/assign-random')
-  assignTaskToRandomUser(
-    @Param('taskId') taskId: string,
-  ) {
-    return this.tasksService.assignTaskToRandomUser(taskId);
-  }
-
-  @Patch(':taskId/toggle-completion')
-  toggleCompletion(
-    @Param('taskId') taskId: string,
-    @AuthUser() user: User
-  ) {
-    return this.tasksService.toggleCompletion(taskId, user.id);
   }
 }

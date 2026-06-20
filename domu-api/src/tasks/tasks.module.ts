@@ -6,9 +6,16 @@ import { Task } from './entities/task.entity';
 import { UsersModule } from '@/users/users.module';
 import { HomeModule } from '@/home/home.module';
 import { UserHomeRoleModule } from '@/user-home-role/user-home-role.module';
+import { TaskOccurrencesModule } from '@/task-occurrences/task-occurrences.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Task]), UsersModule, HomeModule, UserHomeRoleModule],
+  imports: [
+    TypeOrmModule.forFeature([Task]),
+    UsersModule,
+    HomeModule,
+    UserHomeRoleModule,
+    TaskOccurrencesModule,
+  ],
   controllers: [TasksController],
   providers: [TasksService],
   exports: [TasksService],

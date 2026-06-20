@@ -15,7 +15,7 @@ export const AppDataSource = new DataSource({
   username: process.env.DB_USERNAME || 'postgres',
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME || 'domus-db',
-  entities: [User, Task, Home, Role, UserHomeRole, BlockedSchedule, Preference], // TODO: entities: ['dist/**/*.entity.js'],
+  entities: ['dist/**/*.entity.js'], // TODO: entities: ['dist/**/*.entity.js'],
   migrations: ['src/database/migrations/*.ts'],
   synchronize: false,
 });

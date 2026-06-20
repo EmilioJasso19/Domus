@@ -1,24 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { TasksService } from './tasks.service';
-import { Task } from './entities/task.entity';
+import { TaskOccurrencesService } from './task-occurrences.service';
+import { TaskOccurrence } from './entities/task-occurrence.entity';
+import { Task } from '@/tasks/entities/task.entity';
 import { UserHomeRoleService } from '@/user-home-role/user-home-role.service';
-import { TaskOccurrencesService } from '@/task-occurrences/task-occurrences.service';
 
-describe('TasksService', () => {
-  let service: TasksService;
+describe('TaskOccurrencesService', () => {
+  let service: TaskOccurrencesService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        TasksService,
+        TaskOccurrencesService,
+        { provide: getRepositoryToken(TaskOccurrence), useValue: {} },
         { provide: getRepositoryToken(Task), useValue: {} },
         { provide: UserHomeRoleService, useValue: {} },
-        { provide: TaskOccurrencesService, useValue: {} },
       ],
     }).compile();
 
-    service = module.get<TasksService>(TasksService);
+    service = module.get<TaskOccurrencesService>(TaskOccurrencesService);
   });
 
   it('should be defined', () => {

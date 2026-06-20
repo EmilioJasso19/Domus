@@ -13,6 +13,7 @@ import { RoleModule } from './role/role.module';
 import { AssignmentModule } from './assignment/assignment.module';
 import { BlockedSchedulesModule } from './blocked-schedules/blocked-schedules.module';
 import { PreferencesModule } from './preferences/preferences.module';
+import { TaskOccurrencesModule } from './task-occurrences/task-occurrences.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { PreferencesModule } from './preferences/preferences.module';
     AssignmentModule,
     BlockedSchedulesModule,
     PreferencesModule,
+    TaskOccurrencesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

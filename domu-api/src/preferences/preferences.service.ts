@@ -64,21 +64,12 @@ export class PreferencesService {
     return this.preferenceRepository.remove(preferences);
   }
 
-  async saveMany(
-    dto: SavePreferencesDto,
-    homeId: string,
-    user: User,
-  ) {
+  async saveMany(dto: SavePreferencesDto, homeId: string, user: User) {
     const belongsToHome =
-      await this.uhrService.exists({
-        user_id: user.id,
-        home_id: homeId,
-      });
+      await this.uhrService.exists({ user_id: user.id, home_id: homeId });
 
     if (!belongsToHome) {
-      throw new ForbiddenException(
-        'No perteneces a este hogar',
-      );
+      throw new ForbiddenException('No perteneces a este hogar');
     }
 
     const preferences = dto.preferences.map(
@@ -143,6 +134,10 @@ export class PreferencesService {
         name: task.name,
       },
     }));
+  }
+
+  async findOneByUserAndTask(userId: string, taskId: string) {
+    return this.preferenceRepository.findOneBy({ user_id: userId, task_id: taskId });
   }
 
 }
