@@ -1,16 +1,26 @@
-FROM node:22-alpine AS base
+FROM node:22-alpine AS builder
+
 RUN npm install -g pnpm@10
+
 WORKDIR /app
 
-FROM base AS development
 COPY package.json pnpm-lock.yaml .npmrc ./
 RUN pnpm install
-COPY . .
-CMD ["pnpm", "run", "dev"]
 
-FROM base AS production
+COPY . .
+
+RUN pnpm run build
+
+
+FROM node:22-alpine AS production
+
+RUN npm install -g pnpm@10
+
+WORKDIR /app
+
 COPY package.json pnpm-lock.yaml .npmrc ./
 RUN pnpm install --prod
-COPY . .
-RUN pnpm run build
+
+COPY --from=builder /app/dist ./dist
+
 CMD ["node", "dist/main.js"]
