@@ -33,7 +33,7 @@ if (
 	UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-type Frequency = "daily" | "weekly" | "monthly";
+type Frequency = "once" | "daily" | "weekly" | "monthly";
 
 type Member = {
 	user_id: string;
@@ -47,6 +47,7 @@ type Member = {
 type ResponsibleSelection = "auto" | string;
 
 const FREQUENCIES: { key: Frequency; label: string }[] = [
+	{ key: "once", label: "Una vez" },
 	{ key: "daily", label: "Diario" },
 	{ key: "weekly", label: "Semanal" },
 	{ key: "monthly", label: "Mensual" },

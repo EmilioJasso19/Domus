@@ -1,5 +1,5 @@
 import { Column, Entity, JoinColumn, OneToOne, PrimaryColumn } from 'typeorm';
-import { Home } from './home.entity';
+import { Home } from '../../home/entities/home.entity';
 
 @Entity({ name: 'virtual_pet' })
 export class VirtualPet {

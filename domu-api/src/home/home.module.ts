@@ -6,12 +6,14 @@ import { Home } from './entities/home.entity';
 import { UserHomeRoleModule } from '@/user-home-role/user-home-role.module';
 import { AuthModule } from '@/auth/auth.module';
 import { RoleModule } from '@/role/role.module';
+import { VirtualPetModule } from '@/virtual-pet/virtual-pet.module';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Home]), 
     RoleModule,
     UserHomeRoleModule, 
-    AuthModule
+    AuthModule,
+    VirtualPetModule
   ],
   controllers: [HomeController],
   providers: [HomeService],

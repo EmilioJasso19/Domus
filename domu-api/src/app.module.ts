@@ -14,6 +14,7 @@ import { AssignmentModule } from './assignment/assignment.module';
 import { BlockedSchedulesModule } from './blocked-schedules/blocked-schedules.module';
 import { PreferencesModule } from './preferences/preferences.module';
 import { TaskOccurrencesModule } from './task-occurrences/task-occurrences.module';
+import { VirtualPetModule } from './virtual-pet/virtual-pet.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { TaskOccurrencesModule } from './task-occurrences/task-occurrences.modul
     BlockedSchedulesModule,
     PreferencesModule,
     TaskOccurrencesModule,
+    VirtualPetModule,
   ],
   controllers: [AppController],
   providers: [AppService],

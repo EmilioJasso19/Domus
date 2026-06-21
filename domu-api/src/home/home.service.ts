@@ -54,6 +54,13 @@ export class HomeService {
       });
       await queryRunner.manager.save(userHomeRole);
 
+      const pet = queryRunner.manager.create('VirtualPet', {
+        home_id: home.id,
+        name: 'Domi',
+        level: 0,
+      });
+      await queryRunner.manager.save(pet);
+
       await queryRunner.commitTransaction();
       return home;
     } catch (err) {
