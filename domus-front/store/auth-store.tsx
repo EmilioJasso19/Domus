@@ -80,10 +80,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 		set({
 			token,
 			user: userRaw ? JSON.parse(userRaw) : null,
-			isHydrated: true,
 		});
 		// Rehidratar hogares desde el home-store
 		await useHomeStore.getState().loadHouseholds();
+		set({ isHydrated: true });
 	},
 
 	login: async (data) => {

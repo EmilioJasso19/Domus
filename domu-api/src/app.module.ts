@@ -2,6 +2,7 @@ import { Module, } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './users/users.module';
 import { join } from 'path';
@@ -15,10 +16,13 @@ import { BlockedSchedulesModule } from './blocked-schedules/blocked-schedules.mo
 import { PreferencesModule } from './preferences/preferences.module';
 import { TaskOccurrencesModule } from './task-occurrences/task-occurrences.module';
 import { VirtualPetModule } from './virtual-pet/virtual-pet.module';
+import { DeviceTokensModule } from './device-tokens/device-tokens.module';
+import { RemindersModule } from './reminders/reminders.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',
@@ -42,6 +46,8 @@ import { VirtualPetModule } from './virtual-pet/virtual-pet.module';
     PreferencesModule,
     TaskOccurrencesModule,
     VirtualPetModule,
+    DeviceTokensModule,
+    RemindersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -9,7 +9,7 @@ import {
 	Platform,
 	UIManager,
 } from "react-native";
-import { useRouter, Redirect } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import {
 	ChevronDown,
 	ChevronRight,
@@ -32,6 +32,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { HomeItem, Task, Activity } from "@/constants/types";
 import { useHomeStore } from "@/store/home-store";
 import { BACKGROUND } from "@/constants/colors";
+import { Image } from 'react-native';
 
 // Habilitar LayoutAnimation en Android (para el desplegable)
 if (
@@ -92,38 +93,40 @@ export default function DashboardScreen() {
 			.catch(() => setHomes([]));
 	}, []);
 
-	useEffect(() => {
-		if (!householdIdSelected) setHouseholds([...households]);
-		setIsLoading(true);
+	useFocusEffect(
+		useCallback(() => {
+			if (!householdIdSelected) setHouseholds([...households]);
+			setIsLoading(true);
 
-		Promise.all([
-			axios.get("/tasks", {
-				params: {
-					home_id: householdIdSelected,
-					user_id: user?.id,
-					completed: false,
-				},
-			}),
+			Promise.all([
+				axios.get("/tasks", {
+					params: {
+						home_id: householdIdSelected,
+						user_id: user?.id,
+						completed: false,
+					},
+				}),
 
-			axios.get("/tasks", {
-				params: {
-					home_id: householdIdSelected,
-					user_id: user?.id,
-					completed: true,
-					date: "today",
-				},
-			}),
-		])
-			.then(([upcomingRes, completedRes]) => {
-				setUpcoming(upcomingRes.data);
-				setCompletedToday(completedRes.data)
-			})
-			.catch(() => {
-				setUpcoming([]);
-				setCompletedToday([]);
-			})
-			.finally(() => setIsLoading(false));
-	}, [householdIdSelected]);
+				axios.get("/tasks", {
+					params: {
+						home_id: householdIdSelected,
+						user_id: user?.id,
+						completed: true,
+						date: "today",
+					},
+				}),
+			])
+				.then(([upcomingRes, completedRes]) => {
+					setUpcoming(upcomingRes.data);
+					setCompletedToday(completedRes.data)
+				})
+				.catch(() => {
+					setUpcoming([]);
+					setCompletedToday([]);
+				})
+				.finally(() => setIsLoading(false));
+		}, [householdIdSelected])
+	);
 
 	const openHomeSelector = useCallback(() => sheetRef.current?.present(), []);
 
@@ -174,7 +177,12 @@ export default function DashboardScreen() {
 						className="flex-row items-center gap-1 mb-3"
 					>
 						<Text className="text-base font-nunito-bold text-gray-900">
-							{households?.find((h) => h.id === householdIdSelected)?.name ?? "Selecciona un hogar"}
+							{(() => {
+								const home = households?.find((h) => h.id === householdIdSelected);
+								return home
+									? `${home.name} - ${home.points} pts`
+									: "Selecciona un hogar";
+							})()}
 						</Text>
 						<ChevronDown size={18} color="#374151" />
 					</Pressable>
@@ -254,10 +262,14 @@ export default function DashboardScreen() {
 						</View>
 					)}
 
-					{/* ── Actividad reciente (MOCK) ── */}
 					<Text className="text-xl font-nunito-extrabold text-gray-900 mb-4">
 						Mascota
 					</Text>
+					<Image
+						source={require("@/assets/pet/domi-sin-fondo.gif")}
+						className="w-full h-40 mb-4"
+						style={{ resizeMode: "contain", height: 200 }}
+					/>
 				</ScrollView>
 
 				{/* ── Bottom Sheet: selector de casa ── */}

@@ -15,13 +15,6 @@ export class Task {
   @PrimaryGeneratedColumn('increment', { type: 'bigint' })
   id!: string;
 
-  // @ManyToOne(() => User, { nullable: true })
-  // @JoinColumn({ name: 'responsible_id' })
-  // responsible!: User;
-
-  // @Column({ name: 'responsible_id', type: 'bigint', nullable: true })
-  // responsible_id!: string;
-
   @ManyToOne(() => Home, { nullable: false })
   @JoinColumn({ name: 'home_id' })
   home!: Home;
@@ -38,20 +31,12 @@ export class Task {
   @Column({ type: 'integer', nullable: false, default: 1 })
   physical_effort!: number;
 
-  // @Column({ type: 'date' })
-  // due_date!: Date;
-
   @Column({
     type: 'enum',
     enum: FrequencyType,
     enumName: 'frequency_type_enum',
   })
   frequency_type!: FrequencyType;
-
-  // TODO: physical effort column
-
-  // @Column({ type: 'timestamptz', nullable: true })
-  // completed_at?: Date | null;
 
   @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   created_at!: Date;

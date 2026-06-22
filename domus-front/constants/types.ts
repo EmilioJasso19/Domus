@@ -11,6 +11,7 @@ export type HomeItem = {
 	id: string;
 	name: string;
 	invitation_code?: string;
+	points: string;
 };
 
 export type Activity = {
@@ -25,6 +26,7 @@ export type Household = {
 	id: string;
 	name: string;
 	invitation_code?: string;
+	points: string;
 };
 
 export type HouseholdMember = {

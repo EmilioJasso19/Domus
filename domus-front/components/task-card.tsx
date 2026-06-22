@@ -19,9 +19,12 @@ export default function TaskCard({
 		return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 	};
 
+	// NOTE: legacy/unused card kept for reference. The live screen uses
+	// components/tasks/task-card.tsx + api/tasks.ts. Endpoint repointed to the
+	// task-occurrences route to match the current backend.
 	const toggleTaskCompletion = () => {
 		axios
-			.patch(`/tasks/${task.id}/toggle-completion`)
+			.patch(`/task-occurrences/${task.id}/toggle-completion`)
 			.then((response) => {
 				// reload or update the task state here based on the response
                 onToggleOptimistic(task.id);

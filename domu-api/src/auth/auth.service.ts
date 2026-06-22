@@ -34,6 +34,8 @@ export class AuthService {
       households: households.map(h => ({
         id: h.home.id,
         name: h.home.name,
+        points: h.home.points,
+        invitation_code: h.home.invitation_code,
       }))
     };
   }

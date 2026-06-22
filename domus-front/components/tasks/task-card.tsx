@@ -15,10 +15,10 @@ const AVATAR_COLORS = [
 ];
 
 const FREQUENCY_LABELS: Record<TaskFrequency, string> = {
+	once: "Una vez",
 	daily: "Diario",
 	weekly: "Semanal",
 	monthly: "Mensual",
-	custom: "Personalizado",
 };
 
 const cardShadow = {
@@ -43,9 +43,10 @@ export type TaskCardModel = {
 type TaskCardProps = {
 	task: TaskCardModel;
 	onToggle: (id: string) => void;
+	onPress?: (id: string) => void;
 };
 
-export function TaskCard({ task, onToggle }: TaskCardProps) {
+export function TaskCard({ task, onToggle, onPress }: TaskCardProps) {
 	const palette =
 		AVATAR_COLORS[(task.responsibleColorIndex ?? 0) % AVATAR_COLORS.length];
 
@@ -69,55 +70,63 @@ export function TaskCard({ task, onToggle }: TaskCardProps) {
 				{task.isCompleted ? <Check size={16} color="#fff" strokeWidth={3} /> : null}
 			</Pressable>
 
-			<View className="min-w-0 flex-1">
-				<Text
-					className={`text-base font-nunito-semibold ${
-						task.isCompleted
-							? "text-gray-400 line-through"
-							: "text-gray-900"
-					}`}
-				>
-					{task.name}
-				</Text>
+			<Pressable
+				onPress={onPress ? () => onPress(task.id) : undefined}
+				disabled={!onPress}
+				accessibilityRole={onPress ? "button" : undefined}
+				accessibilityLabel={onPress ? `Ver detalle de "${task.name}"` : undefined}
+				className="min-w-0 flex-1 flex-row items-start gap-3"
+			>
+				<View className="min-w-0 flex-1">
+					<Text
+						className={`text-base font-nunito-semibold ${
+							task.isCompleted
+								? "text-gray-400 line-through"
+								: "text-gray-900"
+						}`}
+					>
+						{task.name}
+					</Text>
 
-				<View className="mt-2 flex-row flex-wrap items-center gap-2">
-					{task.responsibleName ? (
-						<View className="flex-row items-center gap-1.5 rounded-full bg-gray-100 py-1 pl-1 pr-2.5">
-							<View
-								className="h-5 w-5 items-center justify-center rounded-full"
-								style={{ backgroundColor: palette.background }}
-							>
-								<Text
-									className="text-[10px] font-nunito-bold"
-									style={{ color: palette.text }}
+					<View className="mt-2 flex-row flex-wrap items-center gap-2">
+						{task.responsibleName ? (
+							<View className="flex-row items-center gap-1.5 rounded-full bg-gray-100 py-1 pl-1 pr-2.5">
+								<View
+									className="h-5 w-5 items-center justify-center rounded-full"
+									style={{ backgroundColor: palette.background }}
 								>
-									{task.responsibleInitials}
+									<Text
+										className="text-[10px] font-nunito-bold"
+										style={{ color: palette.text }}
+									>
+										{task.responsibleInitials}
+									</Text>
+								</View>
+								<Text
+									className="text-xs font-nunito-semibold text-gray-700"
+									numberOfLines={1}
+								>
+									{task.responsibleName}
 								</Text>
 							</View>
-							<Text
-								className="text-xs font-nunito-semibold text-gray-700"
-								numberOfLines={1}
-							>
-								{task.responsibleName}
+						) : null}
+
+						<View className="flex-row items-center gap-1">
+							<Repeat size={13} color="#9CA3AF" />
+							<Text className="text-xs font-nunito-medium text-gray-500">
+								{FREQUENCY_LABELS[task.frequency]}
 							</Text>
 						</View>
-					) : null}
-
-					<View className="flex-row items-center gap-1">
-						<Repeat size={13} color="#9CA3AF" />
-						<Text className="text-xs font-nunito-medium text-gray-500">
-							{FREQUENCY_LABELS[task.frequency]}
-						</Text>
 					</View>
 				</View>
-			</View>
 
-			<View className="flex-row items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1.5">
-				<Clock size={13} color="#6B7280" />
-				<Text className="text-xs font-nunito-semibold text-gray-600">
-					{task.dateBadge}
-				</Text>
-			</View>
+				<View className="flex-row items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1.5">
+					<Clock size={13} color="#6B7280" />
+					<Text className="text-xs font-nunito-semibold text-gray-600">
+						{task.dateBadge}
+					</Text>
+				</View>
+			</Pressable>
 		</View>
 	);
 }

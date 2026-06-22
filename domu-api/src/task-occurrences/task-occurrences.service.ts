@@ -6,16 +6,21 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { formatInTimeZone } from 'date-fns-tz';
+import { addDays, addMonths } from 'date-fns';
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import { TaskOccurrence } from './entities/task-occurrence.entity';
 import { Task } from '@/tasks/entities/task.entity';
+import { Home } from '@/home/entities/home.entity';
 import { User } from '@/users/entities/user.entity';
+import { FrequencyType } from '@/tasks/enums/frequency-type.enum';
 import { UserHomeRoleService } from '@/user-home-role/user-home-role.service';
 import { CreateTaskOccurrenceDto } from './dto/create-task-occurrence.dto';
 import { UpdateTaskOccurrenceDto } from './dto/update-task-occurrence.dto';
 import { QueryTaskOccurrencesDto } from './dto/query-task-occurrences.dto';
+import { FindOptionsWhere } from 'typeorm';
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || 'UTC';
+const HOUR_MS = 60 * 60 * 1000;
 
 @Injectable()
 export class TaskOccurrencesService {
@@ -24,8 +29,10 @@ export class TaskOccurrencesService {
     private readonly occurrenceRepository: Repository<TaskOccurrence>,
     @InjectRepository(Task)
     private readonly taskRepository: Repository<Task>,
+    @InjectRepository(Home)
+    private readonly homeRepository: Repository<Home>,
     private readonly uhrService: UserHomeRoleService,
-  ) {}
+  ) { }
 
   async create(dto: CreateTaskOccurrenceDto, user: User) {
     const task = await this.taskRepository.findOneBy({ id: dto.task_id });
@@ -44,11 +51,17 @@ export class TaskOccurrencesService {
 
   // Crea la primera ocurrencia de una tarea recién creada. Lo usa TasksService
   // para que la plantilla nazca con una instancia accionable y asignable.
-  async createForTask(taskId: string, dueDate: string, dueTime?: string | null) {
+  async createForTask(
+    taskId: string,
+    dueDate: string,
+    dueTime?: string | null,
+    responsibleId?: string | null,
+  ) {
     const occurrence = this.occurrenceRepository.create({
       task_id: taskId,
       due_date: dueDate,
       due_time: dueTime ?? null,
+      user_id: responsibleId ?? null,
     });
     return this.occurrenceRepository.save(occurrence);
   }
@@ -83,6 +96,12 @@ export class TaskOccurrencesService {
     return qb.orderBy('o.due_date', 'ASC').addOrderBy('o.id', 'ASC').getMany();
   }
 
+  findBy(condition: FindOptionsWhere<TaskOccurrence> | FindOptionsWhere<TaskOccurrence>[]) {
+    return this.occurrenceRepository.find({
+      where: condition,
+    });
+  }
+
   async findOne(id: string) {
     const occurrence = await this.occurrenceRepository.findOne({
       where: { id },
@@ -98,8 +117,15 @@ export class TaskOccurrencesService {
     const occurrence = await this.findOne(id);
     await this.assertMembership(user.id, occurrence.task.home_id);
 
-    if (dto.due_date !== undefined) occurrence.due_date = dto.due_date;
-    if (dto.due_time !== undefined) occurrence.due_time = dto.due_time ?? null;
+    // Posponer fecha/hora reabre la ventana de recordatorio para la nueva fecha.
+    if (dto.due_date !== undefined) {
+      occurrence.due_date = dto.due_date;
+      occurrence.reminder_sent = false;
+    }
+    if (dto.due_time !== undefined) {
+      occurrence.due_time = dto.due_time ?? null;
+      occurrence.reminder_sent = false;
+    }
 
     return this.occurrenceRepository.save(occurrence);
   }
@@ -111,13 +137,26 @@ export class TaskOccurrencesService {
   }
 
   // Alternar completado. Solo el responsable puede marcar su ocurrencia.
+  // Al COMPLETAR (null → fecha) otorga puntos al hogar según qué tan
+  // anticipadamente se entregó y genera la siguiente ocurrencia recurrente.
   async toggleCompletion(id: string, authId: string) {
     const occurrence = await this.findOne(id);
     if (occurrence.user_id !== authId) {
       throw new BadRequestException('You are not responsible for this task');
     }
-    occurrence.completed_at = occurrence.completed_at ? null : new Date();
-    return this.occurrenceRepository.save(occurrence);
+
+    const completing = !occurrence.completed_at;
+    occurrence.completed_at = completing ? new Date() : null;
+    const saved = await this.occurrenceRepository.save(occurrence);
+
+    if (completing) {
+      await Promise.all([
+        this.awardPoints(saved),
+        this.generateNextOccurrence(saved),
+      ]);
+    }
+
+    return saved;
   }
 
   // Asignación manual de un responsable (el algoritmo automático vive en AssignmentService).
@@ -204,5 +243,104 @@ export class TaskOccurrencesService {
 
   private todayInAppTz(): string {
     return formatInTimeZone(new Date(), APP_TIMEZONE, 'yyyy-MM-dd');
+  }
+
+  // Instante objetivo de la ocurrencia en epoch ms: combina due_date con due_time
+  // (o el final del día, 23:59:59) interpretados en la zona horaria de la app.
+  private toTargetEpochMs(dueDate: string, dueTime?: string | null): number {
+    const time = dueTime ?? '23:59:59';
+    return fromZonedTime(`${dueDate}T${time}`, APP_TIMEZONE).getTime();
+  }
+
+  // Multiplicador de puntos según horas de anticipación respecto al objetivo.
+  // Umbrales por frecuencia: ×3 (muy anticipado), ×2 (anticipado), ×1 (a tiempo),
+  // ×0.5 (tarde).
+  private earlinessMultiplier(hoursEarly: number, freq: FrequencyType): number {
+    let max: number;
+    let mid: number;
+    switch (freq) {
+      case FrequencyType.WEEKLY:
+        max = 72; // 3 días
+        mid = 24; // 1 día
+        break;
+      case FrequencyType.MONTHLY:
+        max = 240; // 10 días
+        mid = 72; // 3 días
+        break;
+      case FrequencyType.ONCE:
+      case FrequencyType.DAILY:
+      default:
+        max = 24;
+        mid = 8;
+        break;
+    }
+    if (hoursEarly >= max) return 3;
+    if (hoursEarly >= mid) return 2;
+    if (hoursEarly >= 0) return 1;
+    return 0.5;
+  }
+
+  // Suma puntos al hogar por completar la ocurrencia. Base = esfuerzo físico de
+  // la tarea, escalado por el multiplicador de anticipación.
+  private async awardPoints(occurrence: TaskOccurrence): Promise<void> {
+    const targetMs = this.toTargetEpochMs(
+      occurrence.due_date,
+      occurrence.due_time,
+    );
+    const hoursEarly = (targetMs - Date.now()) / HOUR_MS;
+    const multiplier = this.earlinessMultiplier(
+      hoursEarly,
+      occurrence.task.frequency_type,
+    );
+    const base = occurrence.task.physical_effort ?? 1;
+    const points = Math.round(base * multiplier);
+    if (points <= 0) return;
+
+    await this.homeRepository.increment(
+      { id: occurrence.task.home_id },
+      'points',
+      points,
+    );
+  }
+
+  // Genera la siguiente ocurrencia sin asignar de una tarea recurrente. No hace
+  // nada para tareas de una sola vez ni si la siguiente ocurrencia ya existe.
+  private async generateNextOccurrence(
+    occurrence: TaskOccurrence,
+  ): Promise<void> {
+    const freq = occurrence.task.frequency_type;
+    if (freq === FrequencyType.ONCE) return;
+
+    // Ancla a mediodía UTC para que la aritmética de fechas no cruce de día por
+    // desfases de zona horaria o DST al re-formatear.
+    const anchor = new Date(`${occurrence.due_date}T12:00:00Z`);
+    let next: Date;
+    switch (freq) {
+      case FrequencyType.DAILY:
+        next = addDays(anchor, 1);
+        break;
+      case FrequencyType.WEEKLY:
+        next = addDays(anchor, 7);
+        break;
+      case FrequencyType.MONTHLY:
+        next = addMonths(anchor, 1);
+        break;
+      default:
+        return;
+    }
+    const nextDueDate = formatInTimeZone(next, 'UTC', 'yyyy-MM-dd');
+
+    const existing = await this.occurrenceRepository.findOne({
+      where: { task_id: occurrence.task_id, due_date: nextDueDate },
+    });
+    if (existing) return;
+
+    const nextOccurrence = this.occurrenceRepository.create({
+      task_id: occurrence.task_id,
+      due_date: nextDueDate,
+      due_time: occurrence.due_time ?? null,
+      user_id: null,
+    });
+    await this.occurrenceRepository.save(nextOccurrence);
   }
 }

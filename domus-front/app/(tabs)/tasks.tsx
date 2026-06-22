@@ -10,9 +10,15 @@ import {
 	Platform,
 	UIManager,
 } from "react-native";
-import { Search } from "lucide-react-native";
+import { Search, Sparkles } from "lucide-react-native";
+import { useRouter } from "expo-router";
 import Toast from "react-native-toast-message";
-import { getTasks, toggleTaskCompletion, type ApiTask } from "@/api/tasks";
+import {
+	getTasks,
+	toggleTaskCompletion,
+	assignAllForHome,
+	type ApiTask,
+} from "@/api/tasks";
 import { getHomeMembers } from "@/api/homes";
 import { HouseholdMember } from "@/constants/types";
 import { useHomeStore } from "@/store/home-store";
@@ -61,6 +67,7 @@ function buildDateBadge(
 }
 
 export default function TasksScreen() {
+	const router = useRouter();
 	const { householdIdSelected } = useHomeStore();
 	const { user } = useAuthStore();
 
@@ -68,6 +75,7 @@ export default function TasksScreen() {
 	const [members, setMembers] = useState<HouseholdMember[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isRefreshing, setIsRefreshing] = useState(false);
+	const [isAssigning, setIsAssigning] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
 	const [filter, setFilter] = useState<TaskFilter>("pending");
@@ -170,6 +178,11 @@ export default function TasksScreen() {
 		};
 	}, [tasks, search, todayKey]);
 
+	const handleOpen = useCallback(
+		(id: string) => router.push(`/tasks/${id}`),
+		[router],
+	);
+
 	const handleToggle = useCallback(async (id: string) => {
 		// Optimistic flip; revert if the backend rejects (e.g. not the responsible).
 		setTasks((prev) =>
@@ -194,6 +207,45 @@ export default function TasksScreen() {
 			});
 		}
 	}, []);
+
+	// Pending occurrences that nobody is responsible for yet — the ones the
+	// auto-assignment algorithm can act on.
+	const unassignedCount = useMemo(
+		() =>
+			tasks.filter((task) => !task.completed_at && !task.responsible_id).length,
+		[tasks],
+	);
+
+	const handleAssignAll = useCallback(async () => {
+		if (!householdIdSelected || isAssigning) return;
+		setIsAssigning(true);
+		try {
+			const result = await assignAllForHome(householdIdSelected);
+			await loadData(true);
+			if (result.unassigned.length > 0) {
+				Toast.show({
+					type: "info",
+					text1: `${result.assigned.length} tarea(s) asignada(s)`,
+					text2: `${result.unassigned.length} sin nadie disponible.`,
+				});
+			} else {
+				Toast.show({
+					type: "success",
+					text1: "Pendientes asignadas",
+					text2: `${result.assigned.length} tarea(s) repartida(s).`,
+				});
+			}
+		} catch (err: any) {
+			Toast.show({
+				type: "error",
+				text1: "No se pudieron asignar las tareas",
+				text2:
+					err?.response?.data?.message ?? "Ocurrió un error inesperado.",
+			});
+		} finally {
+			setIsAssigning(false);
+		}
+	}, [householdIdSelected, isAssigning, loadData]);
 
 	const userInitials =
 		`${user?.name?.[0] ?? ""}${user?.paternal_surname?.[0] ?? ""}`.toUpperCase();
@@ -248,6 +300,15 @@ export default function TasksScreen() {
 					/>
 				</View>
 
+				{/* ── Assign pending ── */}
+				{filter === "pending" && unassignedCount > 0 ? (
+					<AssignPendingButton
+						count={unassignedCount}
+						loading={isAssigning}
+						onPress={handleAssignAll}
+					/>
+				) : null}
+
 				{/* ── Content ── */}
 				{isLoading ? (
 					<ActivityIndicator color={BLUE} className="my-12" />
@@ -280,6 +341,7 @@ export default function TasksScreen() {
 											key={task.id}
 											task={toModel(task)}
 											onToggle={handleToggle}
+											onPress={handleOpen}
 										/>
 									))
 								)}
@@ -299,6 +361,7 @@ export default function TasksScreen() {
 											key={task.id}
 											task={toModel(task)}
 											onToggle={handleToggle}
+											onPress={handleOpen}
 										/>
 									))
 								)}
@@ -317,6 +380,7 @@ export default function TasksScreen() {
 								key={task.id}
 								task={toModel(task)}
 								onToggle={handleToggle}
+								onPress={handleOpen}
 							/>
 						))}
 					</View>
@@ -340,16 +404,46 @@ function FilterPill({
 			onPress={onPress}
 			accessibilityRole="button"
 			accessibilityState={{ selected: active }}
-			className={`min-h-[40px] items-center justify-center rounded-full px-5 ${
-				active ? "bg-blue-600" : "border border-gray-200 bg-white"
-			}`}
+			className={`min-h-[40px] items-center justify-center rounded-full px-5 ${active ? "bg-blue-600" : "border border-gray-200 bg-white"
+				}`}
 		>
 			<Text
-				className={`text-sm font-nunito-bold ${
-					active ? "text-white" : "text-gray-600"
-				}`}
+				className={`text-sm font-nunito-bold ${active ? "text-white" : "text-gray-600"
+					}`}
 			>
 				{label}
+			</Text>
+		</Pressable>
+	);
+}
+
+function AssignPendingButton({
+	count,
+	loading,
+	onPress,
+}: {
+	count: number;
+	loading: boolean;
+	onPress: () => void;
+}) {
+	return (
+		<Pressable
+			onPress={onPress}
+			disabled={loading}
+			accessibilityRole="button"
+			accessibilityState={{ disabled: loading }}
+			className={`mb-6 min-h-[52px] flex-row items-center justify-center gap-2 rounded-2xl px-5 ${loading ? "bg-blue-400" : "bg-blue-600"
+				}`}
+		>
+			{loading ? (
+				<ActivityIndicator color="#fff" size="small" />
+			) : (
+				<Sparkles size={18} color="#fff" />
+			)}
+			<Text className="text-sm font-nunito-bold text-white">
+				{loading
+					? "Asignando..."
+					: `Asignar pendientes (${count})`}
 			</Text>
 		</Pressable>
 	);

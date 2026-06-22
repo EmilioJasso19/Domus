@@ -30,12 +30,17 @@ export class TasksService {
       throw new BadRequestException('No perteneces a este hogar');
     }
 
-    const { due_date, due_time, ...taskData } = createTaskDto;
+    const { due_date, due_time, responsible_id, ...taskData } = createTaskDto;
     const task = await this.taskRepository.save(
       this.taskRepository.create(taskData),
     );
 
-    await this.occurrencesService.createForTask(task.id, due_date, due_time);
+    await this.occurrencesService.createForTask(
+      task.id,
+      due_date,
+      due_time,
+      responsible_id,
+    );
 
     return task;
   }

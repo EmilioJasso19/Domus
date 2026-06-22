@@ -1,4 +1,4 @@
-import { IsString, MaxLength, MinLength, IsOptional, IsDateString, IsEnum, Matches } from "class-validator";
+import { IsString, MaxLength, MinLength, IsOptional, IsDateString, IsEnum, Matches, IsInt, Min, Max } from "class-validator";
 import { FrequencyType } from "../enums/frequency-type.enum";
 
 export class CreateTaskDto {
@@ -29,4 +29,18 @@ export class CreateTaskDto {
 
     @IsEnum(FrequencyType)
     frequency_type!: FrequencyType;
+
+    // Esfuerzo físico estimado (1 = muy bajo … 5 = muy alto). Pondera el reparto
+    // de carga en la asignación automática.
+    @IsOptional()
+    @IsInt()
+    @Min(1)
+    @Max(5)
+    physical_effort?: number;
+
+    // Responsable inicial opcional. Se asigna a la primera ocurrencia; si se
+    // omite, la ocurrencia nace sin asignar (la asigna el algoritmo o el usuario).
+    @IsOptional()
+    @IsString()
+    responsible_id?: string;
 }

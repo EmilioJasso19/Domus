@@ -9,7 +9,7 @@ export default function TaskLayout() {
 			}}
 		>
 			<Stack.Screen name="create" />
-			
+			<Stack.Screen name="[id]" />
 		</Stack>
 	);
 }

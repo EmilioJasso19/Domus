@@ -10,7 +10,7 @@ import {
 	UIManager,
 	ActivityIndicator,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import {
 	ArrowLeft,
 	Calendar as CalendarIcon,
@@ -25,6 +25,11 @@ import { Calendar } from "react-native-calendars";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import axios from "@/api/axios";
 import { useHomeStore } from "@/store/home-store";
+import {
+	getTaskOccurrence,
+	assignOccurrenceToUser,
+	EFFORT_LABELS,
+} from "@/api/tasks";
 
 if (
 	Platform.OS === "android" &&
@@ -53,11 +58,27 @@ const FREQUENCIES: { key: Frequency; label: string }[] = [
 	{ key: "monthly", label: "Mensual" },
 ];
 
+const EFFORT_LEVELS: { value: number; label: string }[] = [1, 2, 3, 4, 5].map(
+	(value) => ({ value, label: EFFORT_LABELS[value] }),
+);
+
 const BLUE = "#2563EB";
+
+// "HH:MM:SS" -> Date (today at that time), for prefilling the time picker in edit mode.
+function timeStringToDate(time: string): Date {
+	const [h, m, s] = time.split(":").map(Number);
+	const d = new Date();
+	d.setHours(h ?? 0, m ?? 0, s ?? 0, 0);
+	return d;
+}
 
 export default function CreateTask() {
 	const router = useRouter();
 	const { householdIdSelected } = useHomeStore();
+
+	// Editing an existing occurrence: route is /tasks/create?id=<occurrenceId>.
+	const { id: editId } = useLocalSearchParams<{ id?: string }>();
+	const isEditing = !!editId;
 
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
@@ -65,11 +86,17 @@ export default function CreateTask() {
 	const [dueTime, setDueTime] = useState<Date | null>(null);
 	const [frequency, setFrequency] = useState<Frequency>("daily");
 	const [responsible, setResponsible] = useState<ResponsibleSelection>("auto");
+	const [physicalEffort, setPhysicalEffort] = useState<number>(3);
+	// Tracks the originally-loaded values so edit mode only fires the calls it needs.
+	const [editTaskId, setEditTaskId] = useState<string | null>(null);
+	const [initialResponsible, setInitialResponsible] =
+		useState<ResponsibleSelection>("auto");
 
 	const [members, setMembers] = useState<Member[]>([]);
 	const [showCalendar, setShowCalendar] = useState(false);
 	const [showTimePicker, setShowTimePicker] = useState(false);
 	const [showMore, setShowMore] = useState(true);
+	const [isLoadingTask, setIsLoadingTask] = useState(isEditing);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -82,6 +109,34 @@ export default function CreateTask() {
 			})
 			.catch(() => setMembers([]));
 	}, [householdIdSelected]);
+
+	// Prefill the form when editing an existing occurrence.
+	useEffect(() => {
+		if (!editId) return;
+		let active = true;
+		setIsLoadingTask(true);
+		getTaskOccurrence(editId)
+			.then((task) => {
+				if (!active) return;
+				setName(task.name);
+				setDescription(task.description ?? "");
+				setDueDate(task.due_date.slice(0, 10));
+				setDueTime(task.due_time ? timeStringToDate(task.due_time) : null);
+				setFrequency(task.frequency_type);
+				setPhysicalEffort(task.physical_effort);
+				setEditTaskId(task.task_id);
+				const initial = task.responsible_id ?? "auto";
+				setResponsible(initial);
+				setInitialResponsible(initial);
+			})
+			.catch(() =>
+				setSubmitError("No pudimos cargar la tarea para editar."),
+			)
+			.finally(() => active && setIsLoadingTask(false));
+		return () => {
+			active = false;
+		};
+	}, [editId]);
 
 	const toggleCalendar = () => {
 		LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -100,28 +155,57 @@ export default function CreateTask() {
 		? dueTime.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })
 		: null;
 
+	// 24h "HH:MM" for the API (the backend validates ^([01]\d|2[0-3]):[0-5]\d$).
+	const payloadTime = dueTime
+		? `${String(dueTime.getHours()).padStart(2, "0")}:${String(
+				dueTime.getMinutes(),
+			).padStart(2, "0")}`
+		: undefined;
+
 	const initials = (m: Member) =>
 		`${m.name[0] ?? ""}${m.paternal_surname[0] ?? ""}`.toUpperCase();
 
 	const handleSubmit = async () => {
 		if (!name.trim() || !dueDate) return;
 		setIsSubmitting(true);
-
-		const payload = {
-			name: name.trim(),
-			description: description.trim() || undefined,
-			home_id: householdIdSelected,
-			responsible_id: responsible === "auto" ? null : responsible,
-			due_date: dueDate,
-			due_time: displayTime ?? undefined,
-			frequency_type: frequency,
-		};
+		setSubmitError(null);
 
 		try {
-			await axios.post("/tasks", payload);
+			if (isEditing && editId && editTaskId) {
+				// Template fields live on the task; date/time live on the occurrence.
+				await axios.patch(`/tasks/${editTaskId}`, {
+					name: name.trim(),
+					description: description.trim() || undefined,
+					physical_effort: physicalEffort,
+					frequency_type: frequency,
+				});
+				await axios.patch(`/task-occurrences/${editId}`, {
+					due_date: dueDate,
+					due_time: payloadTime ?? null,
+				});
+				// Manual responsible changes go through the assign endpoint.
+				if (responsible !== "auto" && responsible !== initialResponsible) {
+					await assignOccurrenceToUser(editId, responsible);
+				}
+			} else {
+				await axios.post("/tasks", {
+					name: name.trim(),
+					description: description.trim() || undefined,
+					home_id: householdIdSelected,
+					responsible_id: responsible === "auto" ? null : responsible,
+					due_date: dueDate,
+					due_time: payloadTime,
+					frequency_type: frequency,
+					physical_effort: physicalEffort,
+				});
+			}
 			router.back();
-		} catch (e) {
-			setSubmitError("Error al crear la tarea. Por favor, inténtalo de nuevo.");
+		} catch {
+			setSubmitError(
+				isEditing
+					? "Error al guardar los cambios. Inténtalo de nuevo."
+					: "Error al crear la tarea. Por favor, inténtalo de nuevo.",
+			);
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -138,7 +222,7 @@ export default function CreateTask() {
 					<ArrowLeft size={24} color="#111827" />
 				</Pressable>
 				<Text className="flex-1 text-center text-xl font-nunito-bold text-gray-900 -ml-9">
-					Nueva tarea
+					{isEditing ? "Editar tarea" : "Nueva tarea"}
 				</Text>
 			</View>
 
@@ -148,6 +232,12 @@ export default function CreateTask() {
 				</View>
 			) }
 
+			{isLoadingTask ? (
+				<View className="flex-1 items-center justify-center">
+					<ActivityIndicator color={BLUE} />
+				</View>
+			) : (
+			<>
 			<ScrollView
 				className="flex-1"
 				contentContainerClassName="px-5 pb-8"
@@ -344,6 +434,39 @@ export default function CreateTask() {
 							})}
 						</ScrollView>
 
+						{/* Esfuerzo físico */}
+						<Text className="text-sm font-nunito-bold text-gray-700 mt-6 mb-3">
+							Esfuerzo físico
+						</Text>
+						<View className="flex-row flex-wrap gap-2">
+							{EFFORT_LEVELS.map((level) => {
+								const active = physicalEffort === level.value;
+								return (
+									<Pressable
+										key={level.value}
+										onPress={() => setPhysicalEffort(level.value)}
+										accessibilityRole="button"
+										accessibilityState={{ selected: active }}
+										className={`h-10 items-center justify-center rounded-full px-4 ${
+											active
+												? "bg-blue-600"
+												: "bg-white border border-gray-200"
+										}`}
+									>
+										<Text
+											className={`text-sm ${
+												active
+													? "font-nunito-bold text-white"
+													: "font-nunito-semibold text-gray-600"
+											}`}
+										>
+											{level.label}
+										</Text>
+									</Pressable>
+								);
+							})}
+						</View>
+
 						{/* Descripción */}
 						<Text className="text-sm font-nunito-bold text-gray-700 mt-6 mb-2">
 							Descripción
@@ -379,12 +502,14 @@ export default function CreateTask() {
 						<>
 							<CheckCircle2 size={20} color="#fff" />
 							<Text className="text-white text-base font-nunito-bold tracking-wide">
-								Crear tarea
+								{isEditing ? "Guardar cambios" : "Crear tarea"}
 							</Text>
 						</>
 					)}
 				</Pressable>
 			</View>
+			</>
+			)}
 		</View>
 	);
 }
