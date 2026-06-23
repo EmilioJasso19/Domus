@@ -26,13 +26,12 @@ import {
 	BottomSheetView,
 	BottomSheetBackdrop,
 } from "@gorhom/bottom-sheet";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import axios from "@/api/axios";
 import { useAuthStore } from "@/store/auth-store";
 import { HomeItem, Task, Activity } from "@/constants/types";
 import { useHomeStore } from "@/store/home-store";
 import { BACKGROUND } from "@/constants/colors";
-import { Image } from 'react-native';
+import { PetDisplay } from "@/components/home/pet-display";
 
 // Habilitar LayoutAnimation en Android (para el desplegable)
 if (
@@ -98,20 +97,24 @@ export default function DashboardScreen() {
 			if (!householdIdSelected) setHouseholds([...households]);
 			setIsLoading(true);
 
+			// Los puntos del hogar cambian al completar tareas; re-sincroniza el
+			// store al enfocar la vista para que el encabezado y la mascota
+			// reflejen el valor actual.
+			refreshHomes().catch(() => { });
+
 			Promise.all([
-				axios.get("/tasks", {
+				axios.get("/task-occurrences", {
 					params: {
 						home_id: householdIdSelected,
 						user_id: user?.id,
-						completed: false,
+						completed: "false",
 					},
 				}),
 
-				axios.get("/tasks", {
+				axios.get("/task-occurrences", {
 					params: {
 						home_id: householdIdSelected,
-						user_id: user?.id,
-						completed: true,
+						completed: "true",
 						date: "today",
 					},
 				}),
@@ -125,7 +128,7 @@ export default function DashboardScreen() {
 					setCompletedToday([]);
 				})
 				.finally(() => setIsLoading(false));
-		}, [householdIdSelected])
+		}, [householdIdSelected, refreshHomes])
 	);
 
 	const openHomeSelector = useCallback(() => sheetRef.current?.present(), []);
@@ -162,8 +165,10 @@ export default function DashboardScreen() {
 		return null;
 	}
 
+	const activeHome = households?.find((h) => h.id === householdIdSelected);
+
 	return (
-		<GestureHandlerRootView className="flex-1">
+		<View className="flex-1">
 			<BottomSheetModalProvider>
 				<ScrollView
 					className="flex-1"
@@ -262,13 +267,9 @@ export default function DashboardScreen() {
 						</View>
 					)}
 
-					<Text className="text-xl font-nunito-extrabold text-gray-900 mb-4">
-						Mascota
-					</Text>
-					<Image
-						source={require("@/assets/pet/domi-sin-fondo.gif")}
-						className="w-full h-40 mb-4"
-						style={{ resizeMode: "contain", height: 200 }}
+					<PetDisplay
+						points={Number(activeHome?.points ?? 0)}
+						hasCompletionsToday={completedToday.length > 0}
 					/>
 				</ScrollView>
 
@@ -360,7 +361,7 @@ export default function DashboardScreen() {
 					</BottomSheetView>
 				</BottomSheetModal>
 			</BottomSheetModalProvider>
-		</GestureHandlerRootView>
+		</View>
 	);
 }
 
@@ -370,34 +371,23 @@ function TaskRow({ task }: { task: Task }) {
 			<View className="w-6 h-6 rounded-md border-2 border-gray-300" />
 			<View className="flex-1">
 				<Text className="text-base font-nunito-semibold text-gray-900 mb-1">
-					{task.name}
+					{task.task.name}
 				</Text>
 				<View className="flex-row items-center gap-3">
-					{task.room ? (
+					<View className="flex-row items-center gap-1">
+						<Clock size={13} color="#EF4444" />
+						<Text className="text-xs font-nunito text-red-500">
+							{task.due_time ?? "Hoy"}
+						</Text>
+					</View>
+					{/* {task.responsible_name && (
 						<View className="flex-row items-center gap-1">
-							<ShoppingCart size={13} color="#2563EB" />
-							<Text className="text-xs font-nunito-semibold text-blue-600">
-								{task.room}
+							<UserIcon size={13} color="#6B7280" />
+							<Text className="text-xs font-nunito text-gray-500">
+								{task.responsible_name}
 							</Text>
 						</View>
-					) : (
-						<>
-							<View className="flex-row items-center gap-1">
-								<Clock size={13} color="#EF4444" />
-								<Text className="text-xs font-nunito text-red-500">
-									{task.due_time ?? "Hoy"}
-								</Text>
-							</View>
-							{task.responsible_name && (
-								<View className="flex-row items-center gap-1">
-									<UserIcon size={13} color="#6B7280" />
-									<Text className="text-xs font-nunito text-gray-500">
-										{task.responsible_name}
-									</Text>
-								</View>
-							)}
-						</>
-					)}
+					)} */}
 				</View>
 			</View>
 		</View>

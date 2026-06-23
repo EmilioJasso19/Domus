@@ -6,6 +6,7 @@ import { Home } from '@/home/entities/home.entity';
 import { Repository } from 'typeorm';
 import { UserHomeRole } from './entities/user-home-role.entity';
 import { Role } from '@/role/entities/role.entity';
+import { RoleName } from '@/role/constants/roles.constants';
 
 @Injectable()
 export class UserHomeRoleService {
@@ -124,9 +125,12 @@ export class UserHomeRoleService {
         }
 
         // check if auth user is owner of the home
-        const isOwner = await this.userHomeRoleRepository.findOneBy({ user_id: authUser.id, home_id: homeId, role: { name: 'owner' } });
+        const isOwner = await this.userHomeRoleRepository.findOne({
+            where: { user_id: authUser.id, home_id: homeId, role: { name: RoleName.OWNER } },
+            relations: ['role'],
+        });
         if (!isOwner) {
-            throw new NotFoundException('Only owners can update roles');
+            throw new NotFoundException('Solo los administradores pueden cambiar roles');
         }
 
         // update role only if auth user is house's owner

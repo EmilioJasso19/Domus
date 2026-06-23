@@ -16,7 +16,6 @@ import {
 	BottomSheetBackdrop,
 	BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Toast from "react-native-toast-message";
 import axios from "@/api/axios";
 import { useAuthStore } from "@/store/auth-store";
@@ -138,7 +137,7 @@ export default function SetupHouseholdScreen() {
 	}
 
 	return (
-		<GestureHandlerRootView className="flex-1">
+		<View className="flex-1">
 			<BottomSheetModalProvider>
 				<ScrollView
 					className="flex-1 bg-slate-50"
@@ -245,6 +244,6 @@ export default function SetupHouseholdScreen() {
 					</BottomSheetView>
 				</BottomSheetModal>
 			</BottomSheetModalProvider>
-		</GestureHandlerRootView>
+		</View>
 	);
 }

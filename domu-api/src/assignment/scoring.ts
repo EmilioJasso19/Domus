@@ -7,6 +7,7 @@ import { MemberSnapshot, AssignmentWeights, DEFAULT_WEIGHTS } from './assignment
 export interface ScoringContext {
   maxLoad: number;
   maxCompletions: number;
+  maxTaskAssignments: number;
 }
 
 // Normaliza un valor contra su máximo. Arranque en frío: si el máximo es 0,
@@ -18,8 +19,10 @@ function normalize(value: number, max: number): number {
 /**
  * Función de costo compuesta (capa pura, sin I/O):
  *   C = load·(currentLoad/maxLoad) + preference·P + history·(recentCompletions/maxCompletions)
+ *       + taskAffinity·(recentAssignmentsToThisTask/maxTaskAssignments)
  * donde P es la preferencia CRUDA: gusta = -1, neutral = 0, disgusta = +1.
- * Una tarea que gusta abarata el costo; una que disgusta lo encarece.
+ * Una tarea que gusta abarata el costo; una que disgusta lo encarece. El término
+ * taskAffinity encarece a quien ya hizo seguido ESTA tarea, para no repetirla.
  */
 export function compositeCost(
   member: MemberSnapshot,
@@ -29,7 +32,11 @@ export function compositeCost(
   const L = normalize(member.currentLoad, ctx.maxLoad);
   const P = member.preference; // cruda en {-1, 0, 1}
   const H = normalize(member.recentCompletions, ctx.maxCompletions);
-  return w.load * L + w.preference * P + w.history * H;
+  const T = normalize(
+    member.recentAssignmentsToThisTask,
+    ctx.maxTaskAssignments,
+  );
+  return w.load * L + w.preference * P + w.history * H + w.taskAffinity * T;
 }
 
 /**
@@ -46,6 +53,10 @@ export function selectAssignee(
   const ctx: ScoringContext = {
     maxLoad: Math.max(...members.map((m) => m.currentLoad), 0),
     maxCompletions: Math.max(...members.map((m) => m.recentCompletions), 0),
+    maxTaskAssignments: Math.max(
+      ...members.map((m) => m.recentAssignmentsToThisTask),
+      0,
+    ),
   };
 
   return members.reduce((best, m) => {

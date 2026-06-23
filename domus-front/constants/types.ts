@@ -35,12 +35,13 @@ export type HouseholdMember = {
 	paternal_surname: string;
 	maternal_surname?: string | null;
 	role: string;
+	is_creator?: boolean;
 };
 
 export type Preference = {
 	user_id: string;
 	task_id: string;
-	score: number; // -1 = dislike, 0 = neutral, 1 = like
+	score: number; // -1 = like, 0 = neutral, 1 = dislike
 	task: {
 		id: string;
 		name: string;

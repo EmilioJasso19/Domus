@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   InternalServerErrorException,
@@ -12,6 +13,9 @@ import { Home } from './entities/home.entity';
 import { RoleService } from '@/role/role.service';
 import { UserHomeRoleService } from '@/user-home-role/user-home-role.service';
 import { RoleName } from '@/role/constants/roles.constants';
+import { Task } from '@/tasks/entities/task.entity';
+import { Preference } from '@/preferences/entities/preference.entity';
+import { TaskOccurrence } from '@/task-occurrences/entities/task-occurrence.entity';
 
 const mockUser: any = { id: '1', email: 'emilio@example.com', name: 'Emilio' };
 const memberUser: any = { id: '2', email: 'ana@example.com', name: 'Ana' };
@@ -43,6 +47,7 @@ const mockUserHomeRoleService = {
   findOne: jest.fn(),
   findOneBy: jest.fn(),
   findAll: jest.fn(),
+  exists: jest.fn(),
 };
 
 const mockQueryRunner = {
@@ -57,8 +62,19 @@ const mockQueryRunner = {
   },
 };
 
+// EntityManager expuesto dentro de DataSource.transaction(cb).
+const mockEntityManager = {
+  findOne: jest.fn(),
+  count: jest.fn(),
+  find: jest.fn(),
+  delete: jest.fn(),
+  update: jest.fn(),
+  remove: jest.fn(),
+};
+
 const mockDataSource = {
   createQueryRunner: jest.fn(() => mockQueryRunner),
+  transaction: jest.fn((cb: any) => cb(mockEntityManager)),
 };
 
 describe('HomeService', () => {
@@ -255,22 +271,146 @@ describe('HomeService', () => {
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // C14 — Salida exitosa del hogar  (TDD: método leave() no existe)
+  // C14 / Leave — Salir del hogar
   // ═══════════════════════════════════════════════════════════════════════════
-  describe('C14 - Salida exitosa del hogar', () => {
-    it.todo(
-      'debe desvincular al usuario y poner responsible_id nulo en sus tareas (HTTP 200) ' +
-        '— pendiente: implementar service.leave(homeId, user)',
-    );
-  });
+  describe('leave()', () => {
+    const homeTasks = [{ id: 't1' }, { id: 't2' }];
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // C15 — Intento de salida del único Dueño  (TDD: método leave() no existe)
-  // ═══════════════════════════════════════════════════════════════════════════
-  describe('C15 - Intento de salida del único Dueño', () => {
-    it.todo(
-      'debe bloquear la salida con UnprocessableEntity (422) si el usuario es el único OWNER ' +
-        '— pendiente: implementar validación en service.leave',
-    );
+    // Escenario 1: un MEMBER sale de un hogar con varios integrantes.
+    it('desvincula al miembro, libera sus ocurrencias y borra sus preferencias', async () => {
+      mockEntityManager.findOne.mockResolvedValue({
+        user_id: memberUser.id,
+        home_id: mockHome.id,
+        role_id: memberRole.id,
+        role: memberRole,
+      });
+      mockEntityManager.find.mockResolvedValue(homeTasks);
+
+      const result = await service.leave(mockHome.id, memberUser);
+
+      // No se cuenta a los OWNER porque quien sale es MEMBER.
+      expect(mockEntityManager.count).not.toHaveBeenCalled();
+
+      // Preferencias borradas, acotadas a este usuario y a las tareas del hogar.
+      expect(mockEntityManager.delete).toHaveBeenCalledWith(
+        Preference,
+        expect.objectContaining({ user_id: memberUser.id, task_id: expect.anything() }),
+      );
+
+      // Ocurrencias del usuario quedan sin responsable.
+      const [entity, criteria, patch] = mockEntityManager.update.mock.calls[0];
+      expect(entity).toBe(TaskOccurrence);
+      expect(criteria).toEqual(
+        expect.objectContaining({ user_id: memberUser.id, task_id: expect.anything() }),
+      );
+      expect(patch).toEqual({ user_id: null });
+
+      // Membresía eliminada (cascada a blocked_schedules).
+      expect(mockEntityManager.remove).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ message: 'Has salido del hogar' });
+    });
+
+    // Escenario 2: el único OWNER no puede salir.
+    it('bloquea con ConflictException (409) si es el único OWNER', async () => {
+      mockEntityManager.findOne.mockResolvedValue({
+        user_id: mockUser.id,
+        home_id: mockHome.id,
+        role_id: ownerRole.id,
+        role: ownerRole,
+      });
+      mockEntityManager.count.mockResolvedValue(1);
+
+      await expect(service.leave(mockHome.id, mockUser)).rejects.toThrow(
+        ConflictException,
+      );
+
+      // No se tocó nada: ni preferencias, ni ocurrencias, ni membresía.
+      expect(mockEntityManager.delete).not.toHaveBeenCalled();
+      expect(mockEntityManager.update).not.toHaveBeenCalled();
+      expect(mockEntityManager.remove).not.toHaveBeenCalled();
+    });
+
+    // Escenario 3: un OWNER puede salir si existe otro OWNER.
+    it('permite salir a un OWNER cuando hay otro OWNER en el hogar', async () => {
+      mockEntityManager.findOne.mockResolvedValue({
+        user_id: mockUser.id,
+        home_id: mockHome.id,
+        role_id: ownerRole.id,
+        role: ownerRole,
+      });
+      mockEntityManager.count.mockResolvedValue(2);
+      mockEntityManager.find.mockResolvedValue(homeTasks);
+
+      const result = await service.leave(mockHome.id, mockUser);
+
+      expect(mockEntityManager.remove).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ message: 'Has salido del hogar' });
+    });
+
+    // Escenario 4: un no-miembro no puede salir.
+    it('rechaza con BadRequestException si el usuario no pertenece al hogar', async () => {
+      mockEntityManager.findOne.mockResolvedValue(null);
+
+      await expect(service.leave(mockHome.id, memberUser)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockEntityManager.remove).not.toHaveBeenCalled();
+    });
+
+    // Escenario 5: aislamiento entre hogares — solo se afectan las tareas de ESTE hogar.
+    it('acota los cambios a las tareas del hogar que se abandona', async () => {
+      mockEntityManager.findOne.mockResolvedValue({
+        user_id: memberUser.id,
+        home_id: mockHome.id,
+        role_id: memberRole.id,
+        role: memberRole,
+      });
+      mockEntityManager.find.mockResolvedValue(homeTasks);
+
+      await service.leave(mockHome.id, memberUser);
+
+      // Las tareas se buscan filtrando por el hogar abandonado.
+      expect(mockEntityManager.find).toHaveBeenCalledWith(
+        Task,
+        expect.objectContaining({ where: { home_id: mockHome.id } }),
+      );
+    });
+
+    // Escenario 5b: hogar sin tareas — no se intentan borrados/updates con In([]).
+    it('no ejecuta delete/update de tareas si el hogar no tiene tareas', async () => {
+      mockEntityManager.findOne.mockResolvedValue({
+        user_id: memberUser.id,
+        home_id: mockHome.id,
+        role_id: memberRole.id,
+        role: memberRole,
+      });
+      mockEntityManager.find.mockResolvedValue([]);
+
+      await service.leave(mockHome.id, memberUser);
+
+      expect(mockEntityManager.delete).not.toHaveBeenCalled();
+      expect(mockEntityManager.update).not.toHaveBeenCalled();
+      expect(mockEntityManager.remove).toHaveBeenCalledTimes(1);
+    });
+
+    // Escenario 6: reingreso tras salir — join() crea una nueva membresía MEMBER.
+    it('permite reingresar con el código tras haber salido', async () => {
+      mockHomeRepository.findOneBy.mockResolvedValue(mockHome);
+      mockUserHomeRoleService.exists.mockResolvedValue(false); // ya no pertenece
+      mockRoleService.findOneBy.mockResolvedValue(memberRole);
+      mockUserHomeRoleService.assign.mockResolvedValue({});
+
+      const result = await service.join(
+        { invitation_code: mockHome.invitation_code } as any,
+        memberUser,
+      );
+
+      expect(mockUserHomeRoleService.assign).toHaveBeenCalledWith(
+        memberUser.id,
+        mockHome.id,
+        memberRole.id,
+      );
+      expect(result).toEqual(mockHome);
+    });
   });
 });

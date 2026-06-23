@@ -19,19 +19,19 @@ export class PreferencesService {
   ) { }
   async save(createPreferenceDto: CreatePreferenceDto, user: User) {
     if (!user) {
-      throw new Error('User not found');
+      throw new NotFoundException('User not found');
     }
 
     const { task_id, score } = createPreferenceDto;
 
     const task = await this.tasksService.findOne(task_id);
     if (!task) {
-      throw new Error('Task not found');
+      throw new NotFoundException('Task not found');
     }
 
     const uhr = await this.uhrService.exists({ user_id: user.id, home_id: task.home_id });
     if (!uhr) {
-      throw new Error('No perteneces a este hogar');
+      throw new ForbiddenException('No perteneces a este hogar');
     }
 
     const preference = await this.preferenceRepository.findOneBy({ user_id: user.id, task_id });
@@ -48,7 +48,7 @@ export class PreferencesService {
   async remove(id: string, user: User) {
     const preference = await this.preferenceRepository.findOneBy({ user_id: user.id });
     if (!preference) {
-      throw new Error('Preference not found');
+      throw new NotFoundException('Preference not found');
     }
     return this.preferenceRepository.remove(preference);
   }

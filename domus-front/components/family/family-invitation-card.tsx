@@ -1,4 +1,4 @@
-import { Copy, Home, Share2 } from "lucide-react-native";
+import { Copy, Home, RefreshCw, Share2 } from "lucide-react-native";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
 const BLUE = "#3A63FA";
@@ -17,6 +17,9 @@ type FamilyInvitationCardProps = {
 	isLoading: boolean;
 	onCopy: () => void;
 	onShare: () => void;
+	onRefreshCode: () => void;
+	isRefreshingCode: boolean;
+	isOwner: boolean;
 };
 
 export function FamilyInvitationCard({
@@ -25,6 +28,9 @@ export function FamilyInvitationCard({
 	isLoading,
 	onCopy,
 	onShare,
+	onRefreshCode,
+	isRefreshingCode,
+	isOwner,
 }: FamilyInvitationCardProps) {
 	const hasCode = Boolean(invitationCode);
 
@@ -74,6 +80,21 @@ export function FamilyInvitationCard({
 						>
 							{invitationCode ?? "Sin código"}
 						</Text>
+						{isOwner ? (
+							<Pressable
+								onPress={onRefreshCode}
+								disabled={!hasCode || isRefreshingCode}
+								accessibilityRole="button"
+								accessibilityLabel="Generar nuevo código de invitación"
+								className="h-11 w-11 items-center justify-center rounded-xl active:bg-white"
+							>
+								<RefreshCw
+									size={22}
+									color={hasCode ? BLUE : "#9CA3AF"}
+									style={{ opacity: isRefreshingCode ? 0.5 : 1 }}
+								/>
+							</Pressable>
+						) : null}
 						<Pressable
 							onPress={onCopy}
 							disabled={!hasCode}

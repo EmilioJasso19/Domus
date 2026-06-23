@@ -9,6 +9,7 @@ import {
 	RefreshControl,
 	Platform,
 	UIManager,
+	Alert,
 } from "react-native";
 import { Search, Sparkles } from "lucide-react-native";
 import { useRouter } from "expo-router";
@@ -38,6 +39,10 @@ if (
 }
 
 type TaskFilter = "pending" | "completed";
+
+// Una ocurrencia con fecha más allá de este umbral se considera "lejana": al
+// asignarla ahora, preferencias y horarios pueden cambiar antes de su fecha.
+const FAR_DUE_THRESHOLD_DAYS = 7;
 
 // ── Date helpers ────────────────────────────────────────────────────────────
 function toDateKey(date: Date): string {
@@ -216,8 +221,8 @@ export default function TasksScreen() {
 		[tasks],
 	);
 
-	const handleAssignAll = useCallback(async () => {
-		if (!householdIdSelected || isAssigning) return;
+	const performAssignAll = useCallback(async () => {
+		if (!householdIdSelected) return;
 		setIsAssigning(true);
 		try {
 			const result = await assignAllForHome(householdIdSelected);
@@ -245,7 +250,38 @@ export default function TasksScreen() {
 		} finally {
 			setIsAssigning(false);
 		}
-	}, [householdIdSelected, isAssigning, loadData]);
+	}, [householdIdSelected, loadData]);
+
+	const handleAssignAll = useCallback(() => {
+		if (!householdIdSelected || isAssigning) return;
+
+		// Umbral = hoy + N días. Las pendientes sin responsable cuya fecha lo
+		// rebase son "lejanas": avisamos antes de asignar.
+		const threshold = new Date();
+		threshold.setDate(threshold.getDate() + FAR_DUE_THRESHOLD_DAYS);
+		const thresholdKey = toDateKey(threshold);
+
+		const hasFarTasks = tasks.some(
+			(task) =>
+				!task.completed_at &&
+				!task.responsible_id &&
+				dueKey(task) > thresholdKey,
+		);
+
+		if (hasFarTasks) {
+			Alert.alert(
+				"Asignar tareas",
+				"Algunas tareas tienen una fecha de entrega lejana. Como las preferencias y los horarios de disponibilidad pueden cambiar antes de esa fecha, la asignación podría volverse imprecisa. ¿Quieres asignarlas de todos modos?",
+				[
+					{ text: "Cancelar", style: "cancel" },
+					{ text: "Asignar de todos modos", onPress: () => performAssignAll() },
+				],
+			);
+			return;
+		}
+
+		performAssignAll();
+	}, [householdIdSelected, isAssigning, tasks, performAssignAll]);
 
 	const userInitials =
 		`${user?.name?.[0] ?? ""}${user?.paternal_surname?.[0] ?? ""}`.toUpperCase();

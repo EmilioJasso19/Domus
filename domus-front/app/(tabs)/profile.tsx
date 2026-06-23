@@ -17,7 +17,6 @@ import {
 	BottomSheetView,
 	BottomSheetBackdrop,
 } from "@gorhom/bottom-sheet";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useAuthStore } from "@/store/auth-store";
 import { useHomeStore } from "@/store/home-store";
 import { Household } from "@/constants/types";
@@ -92,7 +91,7 @@ export default function ProfileScreen() {
 	];
 
 	return (
-		<GestureHandlerRootView className="flex-1">
+		<View className="flex-1">
 			<BottomSheetModalProvider>
 				<View className="flex-1" style={{ backgroundColor: BACKGROUND }}>
 					<ScrollView
@@ -239,6 +238,6 @@ export default function ProfileScreen() {
 					</BottomSheetView>
 				</BottomSheetModal>
 			</BottomSheetModalProvider>
-		</GestureHandlerRootView>
+		</View>
 	);
 }

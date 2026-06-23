@@ -15,13 +15,14 @@ import { Preference } from "@/constants/types";
 import { getPreferences, saveManyPreferences } from "@/api/preferences";
 import { useHomeStore } from "@/store/home-store";
 
-// El backend trabaja con un score numérico (-1 / 0 / 1); el componente de fila
-// usa un valor semántico. Convertimos en ambas direcciones.
+// El backend trabaja con un score numérico (-1 = like / 0 = neutral / 1 = dislike);
+// un score bajo abarata el costo de asignación. El componente de fila usa un valor
+// semántico. Convertimos en ambas direcciones.
 const scoreToValue = (score: number): PreferenceValue =>
-	score > 0 ? "like" : score < 0 ? "dislike" : "neutral";
+	score < 0 ? "like" : score > 0 ? "dislike" : "neutral";
 
 const valueToScore = (value: PreferenceValue): number =>
-	value === "like" ? 1 : value === "dislike" ? -1 : 0;
+	value === "like" ? -1 : value === "dislike" ? 1 : 0;
 
 export default function TaskPreferencesScreen() {
 	const router = useRouter();

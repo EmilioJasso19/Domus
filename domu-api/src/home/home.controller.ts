@@ -30,6 +30,11 @@ export class HomeController {
     return this.homeService.join(joinHomeDto, user);
   }
 
+  @Post(':id/leave')
+  leave(@Param('id') id: string, @AuthUser() user) {
+    return this.homeService.leave(id, user);
+  }
+
   @Get('/me')
   findAll(@AuthUser() user) {
     return this.homeService.findAll(user);
@@ -45,6 +50,16 @@ export class HomeController {
     return this.homeService.findOne(id, user);
   }
 
+  @Patch(':homeId/members/:userId/role')
+  updateMemberRole(
+    @Param('homeId') homeId: string,
+    @Param('userId') userId: string,
+    @Body('role') role: string,
+    @AuthUser() user,
+  ) {
+    return this.homeService.updateMemberRole(homeId, userId, role, user);
+  }
+
   @Patch(':id')
   async update(
     @Param('id') id: string,
@@ -52,6 +67,20 @@ export class HomeController {
     @AuthUser() user,
   ) {
     return this.homeService.update(id, updateHomeDto, user);
+  }
+
+  @Delete(':homeId/members/:userId')
+  expelMember(
+    @Param('homeId') homeId: string,
+    @Param('userId') userId: string,
+    @AuthUser() user,
+  ) {
+    return this.homeService.expelMember(homeId, userId, user);
+  }
+
+  @Post(':id/regenerate-code')
+  regenerateCode(@Param('id') id: string, @AuthUser() user) {
+    return this.homeService.regenerateCode(id, user);
   }
 
   @Delete(':id')

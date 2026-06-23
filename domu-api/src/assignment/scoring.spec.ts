@@ -37,6 +37,7 @@ const member = (over: Partial<MemberSnapshot> = {}): MemberSnapshot => ({
   currentLoad: 0,
   preference: 0,
   recentCompletions: 0,
+  recentAssignmentsToThisTask: 0,
   ...over,
 });
 
@@ -44,14 +45,22 @@ describe('computeCost', () => {
   it('calcula el costo esperado para un caso numérico conocido', () => {
     // load 4/8=0.5, pref +1, history 2/4=0.5
     // C = 0.5*0.5 + 0.3*1 + 0.2*0.5 = 0.25 + 0.3 + 0.1 = 0.65
-    const ctx: ScoringContext = { maxLoad: 8, maxCompletions: 4 };
+    const ctx: ScoringContext = {
+      maxLoad: 8,
+      maxCompletions: 4,
+      maxTaskAssignments: 0,
+    };
     const m = member({ currentLoad: 4, preference: 1, recentCompletions: 2 });
 
     expect(compositeCost(m, ctx)).toBeCloseTo(0.65);
   });
 
   it('una tarea que gusta (-1) da menor costo que una que disgusta (+1)', () => {
-    const ctx: ScoringContext = { maxLoad: 4, maxCompletions: 0 };
+    const ctx: ScoringContext = {
+      maxLoad: 4,
+      maxCompletions: 0,
+      maxTaskAssignments: 0,
+    };
     const liked = member({ currentLoad: 2, preference: -1 });
     const disliked = member({ currentLoad: 2, preference: 1 });
 
@@ -59,7 +68,11 @@ describe('computeCost', () => {
   });
 
   it('arranque en frío: con max 0 y preferencia neutral devuelve 0 sin NaN', () => {
-    const ctx: ScoringContext = { maxLoad: 0, maxCompletions: 0 };
+    const ctx: ScoringContext = {
+      maxLoad: 0,
+      maxCompletions: 0,
+      maxTaskAssignments: 0,
+    };
     const cost = compositeCost(member(), ctx);
 
     expect(Number.isNaN(cost)).toBe(false);
@@ -67,7 +80,11 @@ describe('computeCost', () => {
   });
 
   it('a mayor carga, mayor costo (manteniendo lo demás igual)', () => {
-    const ctx: ScoringContext = { maxLoad: 6, maxCompletions: 0 };
+    const ctx: ScoringContext = {
+      maxLoad: 6,
+      maxCompletions: 0,
+      maxTaskAssignments: 0,
+    };
     const light = member({ currentLoad: 2 });
     const heavy = member({ currentLoad: 6 });
 
@@ -105,6 +122,21 @@ describe('selectAssignee', () => {
     const rested = member({ userId: '1', currentLoad: 3, recentCompletions: 0 });
     const busy = member({ userId: '2', currentLoad: 3, recentCompletions: 4 });
     expect(selectAssignee([busy, rested])?.userId).toBe('1');
+  });
+
+  // C45: penalización por afinidad de tarea (todo lo demás igual)
+  it('C45: con carga, preferencia e historial iguales, gana quien hizo menos esta tarea', () => {
+    const fresh = member({
+      userId: '1',
+      currentLoad: 3,
+      recentAssignmentsToThisTask: 0,
+    });
+    const repeated = member({
+      userId: '2',
+      currentLoad: 3,
+      recentAssignmentsToThisTask: 3,
+    });
+    expect(selectAssignee([repeated, fresh])?.userId).toBe('1');
   });
 
   // C43: arranque en frío -> solo cuenta la carga, sin romperse

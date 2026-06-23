@@ -1,5 +1,7 @@
 import { HouseholdMember } from "@/constants/types";
-import { ActivityIndicator, Text, View } from "react-native";
+import { useCallback } from "react";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { Swipeable } from "react-native-gesture-handler";
 
 const avatarColors = [
 	{ background: "#E0E7FF", text: "#1E3A8A" },
@@ -20,12 +22,18 @@ type FamilyMembersSectionProps = {
 	members: HouseholdMember[];
 	currentUserId?: string;
 	isLoading: boolean;
+	isOwner: boolean;
+	onToggleRole: (userId: string, currentRole: string) => void;
+	onExpel: (userId: string, displayName: string) => void;
 };
 
 export function FamilyMembersSection({
 	members,
 	currentUserId,
 	isLoading,
+	isOwner,
+	onToggleRole,
+	onExpel,
 }: FamilyMembersSectionProps) {
 	return (
 		<View>
@@ -45,14 +53,21 @@ export function FamilyMembersSection({
 				</View>
 			) : (
 				<View className="gap-3">
-					{members.map((member, index) => (
-						<MemberRow
-							key={member.user_id}
-							member={member}
-							index={index}
-							isCurrentUser={member.user_id === currentUserId}
-						/>
-					))}
+					{members.map((member, index) => {
+						const isCurrentUser = member.user_id === currentUserId;
+						return (
+							<MemberRow
+								key={member.user_id}
+								member={member}
+								index={index}
+								isCurrentUser={isCurrentUser}
+								canToggle={isOwner}
+								onToggleRole={onToggleRole}
+								canSwipe={isOwner && !member.is_creator && !isCurrentUser}
+								onExpel={onExpel}
+							/>
+						);
+					})}
 				</View>
 			)}
 		</View>
@@ -63,16 +78,40 @@ function MemberRow({
 	member,
 	index,
 	isCurrentUser,
+	canToggle,
+	onToggleRole,
+	canSwipe,
+	onExpel,
 }: {
 	member: HouseholdMember;
 	index: number;
 	isCurrentUser: boolean;
+	canToggle: boolean;
+	onToggleRole: (userId: string, currentRole: string) => void;
+	canSwipe: boolean;
+	onExpel: (userId: string, displayName: string) => void;
 }) {
 	const palette = avatarColors[index % avatarColors.length];
 	const displayName = getDisplayName(member);
 	const roleLabel = getRoleLabel(member.role);
 
-	return (
+	const renderRightActions = useCallback(() => {
+		if (!canSwipe) return null;
+		return (
+			<View className="ml-3 justify-center">
+				<Pressable
+					onPress={() => onExpel(member.user_id, displayName)}
+					className="h-full w-20 items-center justify-center rounded-3xl bg-red-500"
+					accessibilityRole="button"
+					accessibilityLabel={`Expulsar a ${displayName}`}
+				>
+					<Text className="text-sm font-nunito-bold text-white">Expulsar</Text>
+				</Pressable>
+			</View>
+		);
+	}, [canSwipe, member.user_id, displayName, onExpel]);
+
+	const card = (
 		<View
 			className="min-h-[88px] flex-row items-center gap-4 rounded-3xl bg-white px-5 py-4"
 			style={itemShadow}
@@ -107,12 +146,36 @@ function MemberRow({
 				) : null}
 			</View>
 
-			<View className="rounded-full bg-gray-100 px-4 py-2">
-				<Text className="text-sm font-nunito-semibold text-gray-700">
-					{roleLabel}
-				</Text>
-			</View>
+			{canToggle ? (
+				<Pressable
+					onPress={() => onToggleRole(member.user_id, member.role)}
+					hitSlop={12}
+					accessibilityRole="button"
+					accessibilityLabel={`Cambiar rol de ${displayName}`}
+					className="rounded-full bg-gray-100 px-4 py-2 active:bg-gray-200"
+				>
+					<Text className="text-sm font-nunito-semibold text-gray-700">
+						{roleLabel}
+					</Text>
+				</Pressable>
+			) : (
+				<View className="rounded-full bg-gray-100 px-4 py-2">
+					<Text className="text-sm font-nunito-semibold text-gray-700">
+						{roleLabel}
+					</Text>
+				</View>
+			)}
 		</View>
+	);
+
+	if (!canSwipe) {
+		return card;
+	}
+
+	return (
+		<Swipeable renderRightActions={renderRightActions} overshootRight={false}>
+			{card}
+		</Swipeable>
 	);
 }
 

@@ -9,6 +9,7 @@ import Toast from 'react-native-toast-message';
 import { useFonts, Nunito_400Regular, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold } from "@expo-google-fonts/nunito";
 import * as SplashScreen from "expo-splash-screen";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useHomeStore } from "@/store/home-store";
 
 SplashScreen.preventAutoHideAsync();
@@ -51,14 +52,16 @@ function RootLayoutNav() {
 
 	return (
 		// <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-		<SafeAreaView className="flex-1">
-			<Stack screenOptions={{ headerShown: false }}>
-				<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-				<Stack.Screen name="(auth)" options={{ headerShown: false }} />
-			</Stack>
-			<StatusBar style="auto" />
-			<Toast />
-		</SafeAreaView>
+		<GestureHandlerRootView className="flex-1">
+			<SafeAreaView className="flex-1">
+				<Stack screenOptions={{ headerShown: false }}>
+					<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+					<Stack.Screen name="(auth)" options={{ headerShown: false }} />
+				</Stack>
+				<StatusBar style="auto" />
+				<Toast />
+			</SafeAreaView>
+		</GestureHandlerRootView>
 		// </ThemeProvider>
 	);
 }

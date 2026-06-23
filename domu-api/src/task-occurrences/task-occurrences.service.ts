@@ -209,6 +209,23 @@ export class TaskOccurrencesService {
       .getCount();
   }
 
+  // Veces que el miembro ha sido responsable de ESTA tarea concreta y la completó
+  // desde `since`. Usa completed_at (cuándo se hizo el trabajo) para penalizar a
+  // quien ya hizo seguido la misma tarea y repartirla de forma más pareja.
+  async countAssignmentsSince(
+    userId: string,
+    taskId: string,
+    since: Date,
+  ): Promise<number> {
+    return this.occurrenceRepository
+      .createQueryBuilder('o')
+      .where('o.user_id = :userId', { userId })
+      .andWhere('o.task_id = :taskId', { taskId })
+      .andWhere('o.completed_at IS NOT NULL')
+      .andWhere('o.completed_at >= :since', { since })
+      .getCount();
+  }
+
   // Ocurrencias sin asignar de un hogar, en orden determinístico (due_date, id).
   async findUnassignedByHome(homeId: string): Promise<TaskOccurrence[]> {
     return this.occurrenceRepository

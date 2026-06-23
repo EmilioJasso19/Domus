@@ -218,21 +218,29 @@ export class AssignmentService {
     currentLoad: Promise<number>,
   ): Promise<MemberSnapshot> {
     const homeId = occurrence.task.home_id;
-    const [load, preference, recentCompletions] = await Promise.all([
-      currentLoad,
-      this.preferenceFor(member.user_id, occurrence.task.id),
-      this.occurrencesService.countCompletionsSince(
-        member.user_id,
-        homeId,
-        this.windowStart(occurrence.task.frequency_type),
-      ),
-    ]);
+    const windowStart = this.windowStart(occurrence.task.frequency_type);
+    const [load, preference, recentCompletions, recentAssignments] =
+      await Promise.all([
+        currentLoad,
+        this.preferenceFor(member.user_id, occurrence.task.id),
+        this.occurrencesService.countCompletionsSince(
+          member.user_id,
+          homeId,
+          windowStart,
+        ),
+        this.occurrencesService.countAssignmentsSince(
+          member.user_id,
+          occurrence.task.id,
+          windowStart,
+        ),
+      ]);
 
     return {
       userId: member.user_id,
       currentLoad: load,
       preference,
       recentCompletions,
+      recentAssignmentsToThisTask: recentAssignments,
     };
   }
 

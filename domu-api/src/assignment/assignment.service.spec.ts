@@ -37,6 +37,7 @@ describe('AssignmentService', () => {
       findOne: jest.fn(),
       sumActiveEffort: jest.fn().mockResolvedValue(0),
       countCompletionsSince: jest.fn().mockResolvedValue(0),
+      countAssignmentsSince: jest.fn().mockResolvedValue(0),
       findUnassignedByHome: jest.fn(),
       setResponsible: jest.fn().mockResolvedValue(undefined),
     };
@@ -136,6 +137,25 @@ describe('AssignmentService', () => {
 
       expect(result).toEqual({ status: 'NO_AVAILABLE' });
       expect(occurrences.setResponsible).not.toHaveBeenCalled();
+    });
+
+    it('la afinidad de tarea desempata: gana quien hizo menos veces ESTA tarea', async () => {
+      occurrences.findOne.mockResolvedValue(occurrence());
+      uhr.findAllByHome.mockResolvedValue([member('1'), member('2')]);
+      // Todo igual (carga 0, sin preferencias, sin historial) salvo que '1' ya hizo
+      // esta tarea 3 veces. Sin el factor, el empate iría al menor userId ('1');
+      // con el factor, gana '2'.
+      occurrences.countAssignmentsSince.mockImplementation(
+        async (userId: string) => (userId === '1' ? 3 : 0),
+      );
+
+      const result = await service.assignOccurrence('1');
+
+      expect(result).toEqual({ status: 'OK', userId: '2' });
+      expect(occurrences.setResponsible).toHaveBeenCalledWith(
+        expect.objectContaining({ id: '1' }),
+        '2',
+      );
     });
   });
 
