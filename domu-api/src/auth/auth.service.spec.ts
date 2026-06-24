@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { UsersService } from '@/users/users.service';
+import { UserHomeRoleService } from '@/user-home-role/user-home-role.service';
 import { JwtService } from '@nestjs/jwt';
 import {
   UnauthorizedException,
@@ -28,6 +29,11 @@ const mockJwtService = {
   sign: jest.fn().mockReturnValue('mock_jwt_token'),
 };
 
+// signIn() consulta los hogares del usuario; por defecto devolvemos lista vacía.
+const mockUserHomeRoleService = {
+  findAll: jest.fn().mockResolvedValue([]),
+};
+
 describe('AuthService', () => {
   let service: AuthService;
 
@@ -37,6 +43,7 @@ describe('AuthService', () => {
         AuthService,
         { provide: UsersService, useValue: mockUsersService },
         { provide: JwtService, useValue: mockJwtService },
+        { provide: UserHomeRoleService, useValue: mockUserHomeRoleService },
       ],
     }).compile();
 

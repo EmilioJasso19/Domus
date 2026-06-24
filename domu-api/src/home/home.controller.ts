@@ -45,6 +45,11 @@ export class HomeController {
     return this.homeService.findMembers(id, user);
   }
 
+  @Get(':id/activity')
+  findRecentActivity(@Param('id') id: string, @AuthUser() user) {
+    return this.homeService.findRecentActivity(id, user);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @AuthUser() user) {
     return this.homeService.findOne(id, user);

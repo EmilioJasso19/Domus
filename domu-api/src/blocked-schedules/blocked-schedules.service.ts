@@ -16,6 +16,13 @@ export class BlockedSchedulesService {
   async create(dto: CreateBlockedScheduleDto, user: User) {
     await this.validateMembership(user.id, dto.home_id);
 
+    // Un miembro solo puede bloquear su propio horario.
+    if (dto.user_id && dto.user_id !== user.id) {
+      throw new ForbiddenException(
+        'No puedes bloquear el horario de otro miembro',
+      );
+    }
+
     if (dto.start_time >= dto.end_time) {
       throw new BadRequestException(
         'La hora inicial debe ser menor a la final',

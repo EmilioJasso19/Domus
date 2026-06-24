@@ -5,6 +5,12 @@ export class CreateBlockedScheduleDto {
     @IsString()
     home_id!: string;
 
+    // Opcional: si se envía debe coincidir con el usuario autenticado. No se
+    // permite bloquear el horario de otro miembro (se rechaza con 403).
+    @IsString()
+    @IsOptional()
+    user_id?: string;
+
     @IsEnum(Days)
     day!: Days;
 

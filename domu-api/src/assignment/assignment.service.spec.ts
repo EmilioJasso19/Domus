@@ -200,4 +200,45 @@ describe('AssignmentService', () => {
       expect(occurrences.setResponsible).toHaveBeenCalledTimes(2);
     });
   });
+
+  // C49 — La ventana de historial depende de la frecuencia de la tarea:
+  // diaria -> 7 días, semanal -> 28 días, mensual -> ~6 meses (~180 días).
+  // Se verifica leyendo el argumento `since` con el que se consulta el historial.
+  describe('C49 - Ventana de historial por frecuencia', () => {
+    const daysAgo = (since: Date) =>
+      (Date.now() - since.getTime()) / (24 * 60 * 60 * 1000);
+
+    const runWith = async (frequency_type: FrequencyType) => {
+      occurrences.findOne.mockResolvedValue(
+        occurrence({ task: { ...occurrence().task, frequency_type } }),
+      );
+      uhr.findAllByHome.mockResolvedValue([member('1')]);
+      await service.assignOccurrence('1');
+      const since = occurrences.countCompletionsSince.mock.calls[0][2] as Date;
+      return daysAgo(since);
+    };
+
+    it('diaria -> ventana de 7 días', async () => {
+      expect(await runWith(FrequencyType.DAILY)).toBeCloseTo(7, 1);
+    });
+
+    it('semanal -> ventana de 28 días', async () => {
+      expect(await runWith(FrequencyType.WEEKLY)).toBeCloseTo(28, 1);
+    });
+
+    it('mensual -> ventana de ~6 meses (175-190 días)', async () => {
+      const d = await runWith(FrequencyType.MONTHLY);
+      expect(d).toBeGreaterThanOrEqual(175);
+      expect(d).toBeLessThanOrEqual(190);
+    });
+  });
+
+  // C30 — Al salir del hogar, el FK ON DELETE CASCADE elimina los blocked_schedules
+  // del usuario. Es una garantía a nivel de base de datos; requiere prueba e2e con
+  // PostgreSQL real (la suite unitaria mockea el repositorio).
+  it.todo('C30: el cascade de blocked_schedules al salir requiere prueba e2e con BD');
+
+  // C52 — El aviso de fecha de entrega lejana es una validación de UI (modal de
+  // confirmación en domus-front/app/(tabs)/tasks.tsx). No tiene lógica de backend.
+  it.todo('C52: el aviso de fecha lejana es frontend-only (sin objetivo de backend)');
 });

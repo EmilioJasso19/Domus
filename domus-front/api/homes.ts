@@ -1,5 +1,5 @@
 import axios from "@/api/axios";
-import { HomeItem, HouseholdMember } from "@/constants/types";
+import { HomeItem, HouseholdMember, RecentActivity } from "@/constants/types";
 
 export type HomeDetailsResponse = {
 	home: HomeItem;
@@ -52,6 +52,16 @@ export async function regenerateInvitationCode(
 ): Promise<{ invitation_code: string }> {
 	const response = await axios.post<{ invitation_code: string }>(
 		`/homes/${homeId}/regenerate-code`,
+	);
+	return response.data;
+}
+
+// Actividad reciente del hogar: tareas completadas esta semana (máx. 20).
+export async function getHomeActivity(
+	homeId: string,
+): Promise<RecentActivity[]> {
+	const response = await axios.get<RecentActivity[]>(
+		`/homes/${homeId}/activity`,
 	);
 	return response.data;
 }

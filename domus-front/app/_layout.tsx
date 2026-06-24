@@ -11,6 +11,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useHomeStore } from "@/store/home-store";
+import { registerForPushNotificationsAsync } from "@/utils/push-notifications";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -30,6 +31,14 @@ function RootLayoutNav() {
 	useEffect(() => {
 		loadToken();
 	}, []);
+
+	// Con sesión iniciada, registramos el token de push del dispositivo. Si el
+	// usuario deniega permisos, el helper omite el registro sin bloquear.
+	useEffect(() => {
+		if (token) {
+			registerForPushNotificationsAsync();
+		}
+	}, [token]);
 
 	useEffect(() => {
 		if (!navigationState?.key || !isHydrated) return;

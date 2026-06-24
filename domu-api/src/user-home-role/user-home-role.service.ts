@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateUserHomeRoleDto } from './dto/create-user-home-role.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '@/users/entities/user.entity';
@@ -130,7 +130,7 @@ export class UserHomeRoleService {
             relations: ['role'],
         });
         if (!isOwner) {
-            throw new NotFoundException('Solo los administradores pueden cambiar roles');
+            throw new ForbiddenException('Solo los administradores pueden cambiar roles');
         }
 
         // update role only if auth user is house's owner

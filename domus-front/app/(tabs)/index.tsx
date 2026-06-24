@@ -18,6 +18,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import Toast from "react-native-toast-message";
 import axios from "@/api/axios";
+import { BLUE } from "@/constants/colors";
 import { useAuthStore } from "@/store/auth-store";
 import { useHomeStore } from "@/store/home-store";
 
@@ -33,6 +34,7 @@ export default function SetupHouseholdScreen() {
 	const [mode, setMode] = useState<SheetMode>(initialMode === "join" ? "join" : "create");
 	const [value, setValue] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
+	const [inputFocused, setInputFocused] = useState(false);
 
 	const openSheet = useCallback((nextMode: SheetMode) => {
 		setMode(nextMode);
@@ -224,7 +226,10 @@ export default function SetupHouseholdScreen() {
 							autoCapitalize={isCreate ? "words" : "characters"}
 							autoCorrect={false}
 							autoFocus
-							className="border border-gray-200 rounded-xl px-4 h-14 text-base font-nunito text-gray-900 bg-gray-50"
+							onFocus={() => setInputFocused(true)}
+							onBlur={() => setInputFocused(false)}
+							className={`border ${inputFocused ? "" : "border-gray-200"} rounded-xl px-4 h-14 text-base font-nunito text-gray-900 bg-gray-50`}
+							style={inputFocused ? { borderColor: BLUE } : undefined}
 						/>
 
 						<Pressable

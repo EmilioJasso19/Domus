@@ -28,10 +28,11 @@ import {
 } from "@gorhom/bottom-sheet";
 import axios from "@/api/axios";
 import { useAuthStore } from "@/store/auth-store";
-import { HomeItem, Task, Activity } from "@/constants/types";
+import { HomeItem, Task } from "@/constants/types";
 import { useHomeStore } from "@/store/home-store";
 import { BACKGROUND } from "@/constants/colors";
 import { PetDisplay } from "@/components/home/pet-display";
+import { getPet } from "@/api/virtual-pet";
 
 // Habilitar LayoutAnimation en Android (para el desplegable)
 if (
@@ -40,24 +41,6 @@ if (
 ) {
 	UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-// ── Mocks de actividad reciente (endpoint pendiente: GET /homes/:id/activity) ─
-const MOCK_ACTIVITY: Activity[] = [
-	{
-		id: "1",
-		actor: "Mariana",
-		action: "completó",
-		target: "Sacar basura",
-		timeAgo: "Hace 1h",
-	},
-	{
-		id: "2",
-		actor: "Emilio",
-		action: "añadió",
-		target: "Comprar leche",
-		timeAgo: "Hace 3h",
-	},
-];
 
 export default function DashboardScreen() {
 	const router = useRouter();
@@ -70,6 +53,7 @@ export default function DashboardScreen() {
 	const [completedToday, setCompletedToday] = useState<Task[]>([]);
 	const [showCompleted, setShowCompleted] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
+	const [petName, setPetName] = useState("");
 
 	const greeting = (() => {
 		const h = new Date().getHours();
@@ -101,6 +85,13 @@ export default function DashboardScreen() {
 			// store al enfocar la vista para que el encabezado y la mascota
 			// reflejen el valor actual.
 			refreshHomes().catch(() => { });
+
+			// Nombre de la mascota: independiente del bloque de tareas.
+			if (householdIdSelected) {
+				getPet(householdIdSelected)
+					.then((pet) => setPetName(pet.name))
+					.catch(() => { });
+			}
 
 			Promise.all([
 				axios.get("/task-occurrences", {
@@ -270,6 +261,9 @@ export default function DashboardScreen() {
 					<PetDisplay
 						points={Number(activeHome?.points ?? 0)}
 						hasCompletionsToday={completedToday.length > 0}
+						petName={petName}
+						homeId={householdIdSelected}
+						onNameSaved={setPetName}
 					/>
 				</ScrollView>
 

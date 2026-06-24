@@ -22,6 +22,22 @@ export type Activity = {
 	timeAgo: string;
 };
 
+// Tarea completada esta semana, devuelta por GET /homes/:id/activity.
+export type RecentActivity = {
+	id: string;
+	user_id: string;
+	task_name: string;
+	user_name: string;
+	completed_at: string;
+};
+
+// Resumen por integrante de las tareas completadas en la semana (ranking).
+export type WeeklyActivityItem = {
+	userId: string;
+	name: string;
+	completedTasks: number;
+};
+
 export type Household = {
 	id: string;
 	name: string;

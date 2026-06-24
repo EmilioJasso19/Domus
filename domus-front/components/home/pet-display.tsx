@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
-import { Image, Text, View } from "react-native";
+import { Image, Pressable, Text, TextInput, View } from "react-native";
+import { Check } from "lucide-react-native";
+import Toast from "react-native-toast-message";
 import { BLUE } from "@/constants/colors";
+import { updatePetName } from "@/api/virtual-pet";
 
 type PetDisplayProps = {
 	points: number; // puntos del hogar
 	hasCompletionsToday: boolean; // true si hay al menos 1 tarea completada hoy
+	petName: string; // nombre actual de la mascota
+	homeId: string; // PK de la mascota (= ID del hogar)
+	onNameSaved?: (name: string) => void; // notifica al padre del nuevo nombre
 };
 
 // Etapas de crecimiento según los puntos del hogar. `max` es exclusivo: la etapa
@@ -38,8 +44,16 @@ const PET_SOURCES = {
 // La duración de cada cuadro del ciclo "feliz".
 const FRAME_DELAYS = { flickering: 1000, greeting: 3000 } as const;
 
-export function PetDisplay({ points, hasCompletionsToday }: PetDisplayProps) {
+export function PetDisplay({
+	points,
+	hasCompletionsToday,
+	petName,
+	homeId,
+	onNameSaved,
+}: PetDisplayProps) {
 	const [frame, setFrame] = useState<"flickering" | "greeting">("flickering");
+	const [editingName, setEditingName] = useState(petName);
+	const [savingName, setSavingName] = useState(false);
 
 	useEffect(() => {
 		if (!hasCompletionsToday) return; // triste: sin ciclo de animación
@@ -48,6 +62,33 @@ export function PetDisplay({ points, hasCompletionsToday }: PetDisplayProps) {
 		}, FRAME_DELAYS[frame]);
 		return () => clearTimeout(timer);
 	}, [frame, hasCompletionsToday]);
+
+	// Re-sincroniza el campo editable cuando el padre trae un nombre nuevo
+	// (carga inicial o refetch al enfocar la vista).
+	useEffect(() => {
+		setEditingName(petName);
+	}, [petName]);
+
+	const trimmedName = editingName.trim();
+	const canSaveName =
+		trimmedName.length > 0 && trimmedName !== petName && !savingName;
+
+	const handleSaveName = async () => {
+		if (!canSaveName) return;
+		setSavingName(true);
+		try {
+			await updatePetName(homeId, trimmedName);
+			onNameSaved?.(trimmedName);
+			Toast.show({ type: "success", text1: "Nombre actualizado" });
+		} catch (err: any) {
+			Toast.show({
+				type: "error",
+				text1: err?.response?.data?.message ?? "No se pudo actualizar el nombre",
+			});
+		} finally {
+			setSavingName(false);
+		}
+	};
 
 	const stageIndex = points >= 1500 ? 2 : points >= 500 ? 1 : 0;
 	const stage = STAGES[stageIndex];
@@ -63,9 +104,27 @@ export function PetDisplay({ points, hasCompletionsToday }: PetDisplayProps) {
 
 	return (
 		<View>
-			<Text className="text-xl font-nunito-extrabold text-gray-900 mb-4">
-				Mascota
-			</Text>
+			<View className="mb-4 flex-row items-center gap-2">
+				<TextInput
+					value={editingName}
+					onChangeText={setEditingName}
+					placeholder="Mascota"
+					placeholderTextColor="#9CA3AF"
+					maxLength={20}
+					className="flex-1 text-xl font-nunito-extrabold text-gray-900"
+				/>
+				{canSaveName ? (
+					<Pressable
+						onPress={handleSaveName}
+						hitSlop={8}
+						accessibilityRole="button"
+						accessibilityLabel="Guardar nombre de la mascota"
+						className="h-9 w-9 items-center justify-center rounded-full bg-blue-50 active:bg-blue-100"
+					>
+						<Check size={20} color={BLUE} />
+					</Pressable>
+				) : null}
+			</View>
 			<Image
 				source={source}
 				className="w-full mb-4"

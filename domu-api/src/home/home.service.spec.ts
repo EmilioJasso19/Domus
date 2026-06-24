@@ -113,8 +113,8 @@ describe('HomeService', () => {
       expect(mockQueryRunner.startTransaction).toHaveBeenCalled();
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
       expect(mockQueryRunner.release).toHaveBeenCalled();
-      // Se guardaron dos entidades: el hogar y el user_home_role
-      expect(mockQueryRunner.manager.save).toHaveBeenCalledTimes(2);
+      // Se guardaron tres entidades: el hogar, el user_home_role y la mascota.
+      expect(mockQueryRunner.manager.save).toHaveBeenCalledTimes(3);
       expect(result).toBeDefined();
     });
   });
@@ -178,7 +178,8 @@ describe('HomeService', () => {
   describe('C17 - Unirse a un hogar al que ya se pertenece', () => {
     it('debe lanzar ConflictException (409) si el usuario ya es miembro', async () => {
       mockHomeRepository.findOneBy.mockResolvedValue(mockHome);
-      mockUserHomeRoleService.findOneBy.mockResolvedValue({ user_id: memberUser.id }); // ya pertenece
+      // join() comprueba la pertenencia con exists(), no con findOneBy.
+      mockUserHomeRoleService.exists.mockResolvedValue({ user_id: memberUser.id }); // ya pertenece
 
       await expect(
         service.join({ invitation_code: 'abc123' } as any, memberUser),
@@ -227,7 +228,7 @@ describe('HomeService', () => {
         role: memberRole,
       });
 
-      // TODO: update() actualmente NO valida el rol, solo la pertenencia.
+      // update() valida que el solicitante sea OWNER, no solo que pertenezca.
       await expect(
         service.update(mockHome.id, { name: 'Nuevo' } as any, memberUser),
       ).rejects.toThrow(ForbiddenException);
@@ -243,7 +244,7 @@ describe('HomeService', () => {
         role: memberRole,
       });
 
-      // TODO: igual que C20, remove() aún no valida rol OWNER.
+      // remove() valida rol OWNER, igual que update().
       await expect(service.remove(mockHome.id, memberUser)).rejects.toThrow(
         ForbiddenException,
       );

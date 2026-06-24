@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	View,
 	Text,
@@ -12,7 +12,7 @@ import {
 	Alert,
 } from "react-native";
 import { Search, Sparkles } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import Toast from "react-native-toast-message";
 import {
 	getTasks,
@@ -74,6 +74,7 @@ function buildDateBadge(
 export default function TasksScreen() {
 	const router = useRouter();
 	const { householdIdSelected } = useHomeStore();
+	const refreshKey = useHomeStore((s) => s.refreshKey);
 	const { user } = useAuthStore();
 
 	const [tasks, setTasks] = useState<ApiTask[]>([]);
@@ -85,6 +86,7 @@ export default function TasksScreen() {
 
 	const [filter, setFilter] = useState<TaskFilter>("pending");
 	const [search, setSearch] = useState("");
+	const [searchFocused, setSearchFocused] = useState(false);
 	const [hoyExpanded, setHoyExpanded] = useState(true);
 	const [proximasExpanded, setProximasExpanded] = useState(true);
 
@@ -131,9 +133,24 @@ export default function TasksScreen() {
 		[householdIdSelected],
 	);
 
+	useFocusEffect(
+		useCallback(() => {
+			loadData();
+		}, [loadData]),
+	);
+
+	// Una mutación de tareas (completar/reasignar/eliminar) incrementa refreshKey;
+	// refrescamos la lista aunque la pantalla ya esté montada y enfocada. Se omite
+	// la primera ejecución para no duplicar la carga inicial del useFocusEffect.
+	const didMountRef = useRef(false);
 	useEffect(() => {
+		if (!didMountRef.current) {
+			didMountRef.current = true;
+			return;
+		}
 		loadData();
-	}, [loadData]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [refreshKey]);
 
 	// Resolve responsible members so each card can show a name + initials chip.
 	const memberMap = useMemo(() => {
@@ -309,7 +326,10 @@ export default function TasksScreen() {
 				</Text>
 
 				{/* ── Search ── */}
-				<View className="mb-5 h-14 flex-row items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4">
+				<View
+					className={`mb-5 h-14 flex-row items-center gap-3 rounded-2xl border ${searchFocused ? "" : "border-gray-200"} bg-white px-4`}
+					style={searchFocused ? { borderColor: BLUE } : undefined}
+				>
 					<Search size={20} color="#9CA3AF" />
 					<TextInput
 						value={search}
@@ -318,6 +338,8 @@ export default function TasksScreen() {
 						placeholderTextColor="#9CA3AF"
 						returnKeyType="search"
 						accessibilityLabel="Buscar tareas"
+						onFocus={() => setSearchFocused(true)}
+						onBlur={() => setSearchFocused(false)}
 						className="flex-1 text-base font-nunito text-gray-900"
 					/>
 				</View>

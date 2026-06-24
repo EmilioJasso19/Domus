@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { BLUE as APP_BLUE } from "@/constants/colors";
 import {
 	View,
 	Text,
@@ -63,6 +64,9 @@ const EFFORT_LEVELS: { value: number; label: string }[] = [1, 2, 3, 4, 5].map(
 );
 
 const BLUE = "#2563EB";
+// Azul primario del sistema (#3A63FA) para el estado de foco de los inputs.
+// Se importa con alias porque este módulo ya define un BLUE local distinto.
+const FOCUS_BLUE = APP_BLUE;
 
 // "HH:MM:SS" -> Date (today at that time), for prefilling the time picker in edit mode.
 function timeStringToDate(time: string): Date {
@@ -82,6 +86,8 @@ export default function CreateTask() {
 
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
+	const [nameFocused, setNameFocused] = useState(false);
+	const [descFocused, setDescFocused] = useState(false);
 	const [dueDate, setDueDate] = useState<string>(""); // YYYY-MM-DD
 	const [dueTime, setDueTime] = useState<Date | null>(null);
 	const [frequency, setFrequency] = useState<Frequency>("daily");
@@ -250,7 +256,10 @@ export default function CreateTask() {
 					onChangeText={setName}
 					placeholder="Ej. Sacar la basura"
 					placeholderTextColor="#A5B4CB"
-					className="text-2xl font-nunito-bold text-gray-900 py-3 border-b border-gray-200 mb-6"
+					onFocus={() => setNameFocused(true)}
+					onBlur={() => setNameFocused(false)}
+					className={`text-2xl font-nunito-bold text-gray-900 py-3 border-b ${nameFocused ? "" : "border-gray-200"} mb-6`}
+					style={nameFocused ? { borderBottomColor: FOCUS_BLUE } : undefined}
 				/>
 
 				{/* ── Fecha límite (acordeón con calendario) ── */}
@@ -479,7 +488,10 @@ export default function CreateTask() {
 							multiline
 							numberOfLines={4}
 							textAlignVertical="top"
-							className="bg-white border border-gray-200 rounded-2xl px-4 py-3 text-base font-nunito text-gray-900 min-h-[110px]"
+							onFocus={() => setDescFocused(true)}
+							onBlur={() => setDescFocused(false)}
+							className={`bg-white border ${descFocused ? "" : "border-gray-200"} rounded-2xl px-4 py-3 text-base font-nunito text-gray-900 min-h-[110px]`}
+							style={descFocused ? { borderColor: FOCUS_BLUE } : undefined}
 						/>
 					</View>
 				)}

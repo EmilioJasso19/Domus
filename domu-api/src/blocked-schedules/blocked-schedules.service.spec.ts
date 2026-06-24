@@ -113,14 +113,30 @@ describe('BlockedSchedulesService', () => {
       expect(repo.save).not.toHaveBeenCalled();
     });
 
-    // C32: el horario siempre pertenece al usuario autenticado
-    it('C32: ignora cualquier user_id externo y usa el del usuario autenticado', async () => {
+    // C32: no se puede bloquear el horario de otro miembro -> 403
+    it('C32: rechaza con Forbidden si el user_id del body no es el del usuario autenticado', async () => {
       uhr.exists!.mockResolvedValue(true);
       repo.findOne!.mockResolvedValue(null);
-      repo.create!.mockReturnValue(buildSchedule());
-      repo.save!.mockResolvedValue(buildSchedule());
 
-      await service.create({ ...(validDto as any), user_id: '99' }, authUser);
+      await expect(
+        service.create({ ...(validDto as any), user_id: '99' }, authUser),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    // C32b: enviar el propio user_id es válido (coincide con el autenticado).
+    it('C32b: acepta el propio user_id y persiste el horario', async () => {
+      uhr.exists!.mockResolvedValue(true);
+      repo.findOne!.mockResolvedValue(null);
+      const created = buildSchedule();
+      repo.create!.mockReturnValue(created);
+      repo.save!.mockResolvedValue(created);
+
+      await service.create(
+        { ...(validDto as any), user_id: authUser.id },
+        authUser,
+      );
 
       expect(repo.create).toHaveBeenCalledWith(
         expect.objectContaining({ user_id: authUser.id }),

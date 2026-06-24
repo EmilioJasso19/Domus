@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
 import { Text, TextInput, TextInputProps, TouchableOpacity, View } from 'react-native';
+import { BLUE } from '@/constants/colors';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -21,6 +23,8 @@ export default function InputField({
   onRightIconPress,
   ...textInputProps
 }: InputFieldProps) {
+  const [isFocused, setFocused] = useState(false);
+
   return (
     <View className="mb-4">
       <View className="flex-row items-baseline mb-1.5">
@@ -34,8 +38,11 @@ export default function InputField({
         className={`flex-row items-center border-[1.5px] rounded-xl h-[52px] px-3.5
           ${error
             ? 'border-red-300 bg-red-50'
-            : 'border-gray-200 bg-gray-50'
+            : isFocused
+              ? 'bg-blue-50'
+              : 'border-gray-200 bg-gray-50'
           }`}
+        style={!error && isFocused ? { borderColor: BLUE } : undefined}
       >
         {icon && (
           <Ionicons name={icon} size={18} color="#9CA3AF" style={{ marginRight: 8 }} />
@@ -45,6 +52,14 @@ export default function InputField({
           className="flex-1 text-[15px] text-gray-900 h-full"
           placeholderTextColor="#9CA3AF"
           {...textInputProps}
+          onFocus={(e) => {
+            setFocused(true);
+            textInputProps.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            textInputProps.onBlur?.(e);
+          }}
         />
 
         {rightIcon && (

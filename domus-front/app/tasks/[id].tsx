@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
 	View,
 	Text,
@@ -8,7 +8,7 @@ import {
 	Modal,
 	Alert,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
 	ArrowLeft,
 	EllipsisVertical,
@@ -140,9 +140,11 @@ export default function TaskDetailScreen() {
 		setIsLoading(false);
 	}, [id, householdIdSelected]);
 
-	useEffect(() => {
-		loadData();
-	}, [loadData]);
+	useFocusEffect(
+		useCallback(() => {
+			loadData();
+		}, [loadData]),
+	);
 
 	const responsible = useMemo(
 		() =>

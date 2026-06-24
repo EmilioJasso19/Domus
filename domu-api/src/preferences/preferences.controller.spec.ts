@@ -1,7 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ForbiddenException } from '@nestjs/common';
+import { validate } from 'class-validator';
+import { plainToInstance } from 'class-transformer';
 import { PreferencesController } from './preferences.controller';
 import { PreferencesService } from './preferences.service';
+import { SavePreferencesDto } from './dto/save-preference-dto';
 
 const mockPreferencesService = {
   saveMany: jest.fn(),
@@ -66,8 +69,32 @@ describe('PreferencesController', () => {
     });
   });
 
-  // CP-55: rango de score fuera de límites — integration test con ValidationPipe
-  it.todo(
-    'CP-55: debe rechazar con HTTP 400 un score fuera de rango — requiere integration test con ValidationPipe',
-  );
+  // CP-55: rango de score fuera de límites. Se valida a nivel de DTO (las mismas
+  // reglas class-validator que aplica el ValidationPipe en runtime).
+  describe('CP-55 - Validación de rango de score', () => {
+    it('rechaza un score fuera de [-1, 1]', async () => {
+      const dto = plainToInstance(SavePreferencesDto, {
+        preferences: [{ task_id: 't1', score: 2 }],
+      });
+
+      const errors = await validate(dto);
+      const arrError = errors.find((e) => e.property === 'preferences');
+      expect(arrError).toBeDefined();
+      // La violación de @Max(1) aparece en el elemento anidado del arreglo.
+      expect(JSON.stringify(arrError)).toMatch(/max/i);
+    });
+
+    it('acepta los scores válidos -1, 0 y 1', async () => {
+      const dto = plainToInstance(SavePreferencesDto, {
+        preferences: [
+          { task_id: 't1', score: -1 },
+          { task_id: 't2', score: 0 },
+          { task_id: 't3', score: 1 },
+        ],
+      });
+
+      const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+  });
 });

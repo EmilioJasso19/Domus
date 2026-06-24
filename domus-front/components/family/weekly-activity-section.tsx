@@ -1,4 +1,4 @@
-import { WeeklyActivityItem } from "@/mocks/mock-family-weekly-activity";
+import { WeeklyActivityItem } from "@/constants/types";
 import { PartyPopper } from "lucide-react-native";
 import { Text, View } from "react-native";
 

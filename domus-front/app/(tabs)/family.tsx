@@ -18,18 +18,43 @@ import { FamilyMembersSection } from "@/components/family/family-members-section
 import { WeeklyActivitySection } from "@/components/family/weekly-activity-section";
 import {
 	expelMember,
+	getHomeActivity,
 	getHomeDetails,
 	getHomeMembers,
 	leaveHome,
 	regenerateInvitationCode,
 	updateMemberRole,
 } from "@/api/homes";
-import { HouseholdMember, HomeItem } from "@/constants/types";
-import { buildMockWeeklyActivity } from "@/mocks/mock-family-weekly-activity";
+import {
+	HouseholdMember,
+	HomeItem,
+	RecentActivity,
+	WeeklyActivityItem,
+} from "@/constants/types";
 import { useAuthStore } from "@/store/auth-store";
 import { useHomeStore } from "@/store/home-store";
 import { BACKGROUND, BLUE, ERROR } from "@/constants/colors";
 import { EmptyState } from "@/components/empty-state";
+
+// Agrupa las tareas completadas de la semana por integrante y las ordena de
+// mayor a menor cantidad (ranking de actividad).
+function aggregateWeeklyActivity(
+	activity: RecentActivity[],
+): WeeklyActivityItem[] {
+	const byUser = new Map<string, { name: string; count: number }>();
+	for (const item of activity) {
+		const existing = byUser.get(item.user_id);
+		if (existing) existing.count += 1;
+		else byUser.set(item.user_id, { name: item.user_name, count: 1 });
+	}
+	return Array.from(byUser.entries())
+		.map(([userId, v]) => ({
+			userId,
+			name: v.name,
+			completedTasks: v.count,
+		}))
+		.sort((a, b) => b.completedTasks - a.completedTasks);
+}
 
 export default function FamilyScreen() {
 	const router = useRouter();
@@ -47,6 +72,9 @@ export default function FamilyScreen() {
 	);
 	const [savingRoles, setSavingRoles] = useState(false);
 	const [isRefreshingCode, setIsRefreshingCode] = useState(false);
+	const [weeklyActivity, setWeeklyActivity] = useState<WeeklyActivityItem[]>(
+		[],
+	);
 
 	const currentUserRole = members.find((m) => m.user_id === user?.id)?.role;
 	const isOwner = currentUserRole?.toUpperCase() === "OWNER";
@@ -61,16 +89,13 @@ export default function FamilyScreen() {
 	);
 
 	const activeHome = home ?? fallbackHome;
-	const weeklyActivity = useMemo(
-		() => buildMockWeeklyActivity(members),
-		[members],
-	);
 
 	const loadFamilyData = useCallback(
 		async (showRefresh = false) => {
 			if (!householdIdSelected) {
 				setHome(null);
 				setMembers([]);
+				setWeeklyActivity([]);
 				setIsLoading(false);
 				setIsRefreshing(false);
 				return;
@@ -83,10 +108,12 @@ export default function FamilyScreen() {
 			}
 			setError(null);
 
-			const [homeResult, membersResult] = await Promise.allSettled([
-				getHomeDetails(householdIdSelected),
-				getHomeMembers(householdIdSelected),
-			]);
+			const [homeResult, membersResult, activityResult] =
+				await Promise.allSettled([
+					getHomeDetails(householdIdSelected),
+					getHomeMembers(householdIdSelected),
+					getHomeActivity(householdIdSelected),
+				]);
 
 			if (homeResult.status === "fulfilled") {
 				setHome(homeResult.value.home);
@@ -96,6 +123,12 @@ export default function FamilyScreen() {
 				setMembers(membersResult.value);
 			} else {
 				setMembers([]);
+			}
+
+			if (activityResult.status === "fulfilled") {
+				setWeeklyActivity(aggregateWeeklyActivity(activityResult.value));
+			} else {
+				setWeeklyActivity([]);
 			}
 
 			if (

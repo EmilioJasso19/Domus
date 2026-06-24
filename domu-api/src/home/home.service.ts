@@ -14,6 +14,7 @@ import { User } from '@/users/entities/user.entity';
 import { In, Repository } from 'typeorm';
 import { Home } from './entities/home.entity';
 import { nanoid } from 'nanoid';
+import { startOfWeek } from 'date-fns';
 import { UserHomeRoleService } from '@/user-home-role/user-home-role.service';
 import { RoleService } from '@/role/role.service';
 import { RoleName } from '@/role/constants/roles.constants';
@@ -156,6 +157,9 @@ export class HomeService {
     if (!userHomeRole) {
       throw new BadRequestException('User does not belong to this home');
     }
+    if (userHomeRole.role.name !== RoleName.OWNER) {
+      throw new ForbiddenException('Solo los administradores pueden editar el hogar');
+    }
 
     return this.homeRepository.update(id, updateHomeDto);
   }
@@ -173,6 +177,9 @@ export class HomeService {
     const userHomeRole = await this.userHomeRoleService.findOne(authUser.id, id);
     if (!userHomeRole) {
       throw new BadRequestException('User does not belong to this home');
+    }
+    if (userHomeRole.role.name !== RoleName.OWNER) {
+      throw new ForbiddenException('Solo los administradores pueden eliminar el hogar');
     }
 
     await this.homeRepository.delete(id);
@@ -417,5 +424,41 @@ export class HomeService {
       role: m.role.name,
       is_creator: home.createdBy.id === m.user_id,
     }));
+  }
+
+  // Actividad reciente del hogar: las tareas completadas esta semana (desde el
+  // lunes), con quién las completó y cuándo. Ordenadas de más reciente a más
+  // antigua, máximo 20.
+  async findRecentActivity(homeId: string, authUser: User) {
+    if (!authUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const membership = await this.userHomeRoleService.exists({
+      user_id: authUser.id,
+      home_id: homeId,
+    });
+    if (!membership) {
+      throw new BadRequestException('User does not belong to this home');
+    }
+
+    const startWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
+
+    return this.dataSource
+      .getRepository(TaskOccurrence)
+      .createQueryBuilder('o')
+      .innerJoin('o.task', 'task')
+      .innerJoin('o.user', 'u')
+      .select('o.id', 'id')
+      .addSelect('u.id', 'user_id')
+      .addSelect('task.name', 'task_name')
+      .addSelect("CONCAT(u.name, ' ', u.paternal_surname)", 'user_name')
+      .addSelect('o.completed_at', 'completed_at')
+      .where('task.home_id = :homeId', { homeId })
+      .andWhere('o.completed_at IS NOT NULL')
+      .andWhere('o.completed_at >= :startWeek', { startWeek })
+      .orderBy('o.completed_at', 'DESC')
+      .limit(20)
+      .getRawMany();
   }
 }

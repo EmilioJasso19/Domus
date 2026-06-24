@@ -1,4 +1,5 @@
 import axios from "@/api/axios";
+import { useHomeStore } from "@/store/home-store";
 
 export type TaskFrequency = "once" | "daily" | "weekly" | "monthly";
 
@@ -104,6 +105,8 @@ export async function toggleTaskCompletion(
 	const response = await axios.patch<RawTaskOccurrence>(
 		`/task-occurrences/${occurrenceId}/toggle-completion`,
 	);
+	// Señala a las vistas suscritas que deben refrescar (lista de tareas, etc.).
+	useHomeStore.getState().incrementRefreshKey();
 	return toApiTask(response.data);
 }
 
@@ -113,6 +116,7 @@ export async function assignOccurrenceToUser(
 	userId: string,
 ): Promise<void> {
 	await axios.patch(`/task-occurrences/${occurrenceId}/assign/${userId}`);
+	useHomeStore.getState().incrementRefreshKey();
 }
 
 // Deletes a single occurrence.
@@ -120,6 +124,7 @@ export async function deleteTaskOccurrence(
 	occurrenceId: string,
 ): Promise<void> {
 	await axios.delete(`/task-occurrences/${occurrenceId}`);
+	useHomeStore.getState().incrementRefreshKey();
 }
 
 export type AssignAllResult = {

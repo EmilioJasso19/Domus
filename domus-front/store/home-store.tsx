@@ -12,12 +12,17 @@ interface HomeState {
 
 	selectedHome: Household | null;
 
+	// Contador que se incrementa tras mutaciones de tareas para que las vistas
+	// suscritas (p.ej. la lista de tareas) hagan refetch aunque ya estén montadas.
+	refreshKey: number;
+
 	loadHouseholds: () => Promise<void>;
 	refreshHomes: () => Promise<Household[]>;
 	setHouseholds: (households: Household[]) => Promise<void>;
 	clearHouseholds: () => Promise<void>;
 
 	selectHome: (home: Household) => void;
+	incrementRefreshKey: () => void;
 }
 
 const deriveSelected = (
@@ -32,6 +37,7 @@ export const useHomeStore = create<HomeState>((set, get) => ({
 	households: [],
 	householdIdSelected: null,
 	selectedHome: null,
+	refreshKey: 0,
 
 	loadHouseholds: async () => {
 		const [householdsRaw, selectedId] = await Promise.all([
@@ -127,4 +133,7 @@ export const useHomeStore = create<HomeState>((set, get) => ({
 			selectedHome: home,
 		});
 	},
+
+	incrementRefreshKey: () =>
+		set((state) => ({ refreshKey: state.refreshKey + 1 })),
 }));
