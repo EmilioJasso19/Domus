@@ -6,6 +6,12 @@ import { TaskOccurrence } from './entities/task-occurrence.entity';
 import { Task } from '@/tasks/entities/task.entity';
 import { Home } from '@/home/entities/home.entity';
 import { UserHomeRoleService } from '@/user-home-role/user-home-role.service';
+import { HomeService } from '@/home/home.service';
+import { RemindersService } from '@/reminders/reminders.service';
+
+// expo-server-sdk es ESM-only; se mockea porque TaskOccurrencesService importa
+// (transitivamente) RemindersService, que lo carga al resolver el módulo.
+jest.mock('expo-server-sdk', () => ({ Expo: class {} }));
 
 const buildOccurrence = (over: any = {}) => ({
   id: 'o1',
@@ -23,6 +29,11 @@ const mockOccurrenceRepository: any = {
 const mockTaskRepository: any = {};
 const mockHomeRepository: any = {};
 const mockUhrService: any = { exists: jest.fn() };
+const mockHomeService: any = { incrementPoints: jest.fn() };
+const mockRemindersService: any = {
+  scheduleForOccurrence: jest.fn(),
+  findByOccurrence: jest.fn(),
+};
 
 describe('TaskOccurrencesService', () => {
   let service: TaskOccurrencesService;
@@ -35,6 +46,8 @@ describe('TaskOccurrencesService', () => {
         { provide: getRepositoryToken(Task), useValue: mockTaskRepository },
         { provide: getRepositoryToken(Home), useValue: mockHomeRepository },
         { provide: UserHomeRoleService, useValue: mockUhrService },
+        { provide: HomeService, useValue: mockHomeService },
+        { provide: RemindersService, useValue: mockRemindersService },
       ],
     }).compile();
 

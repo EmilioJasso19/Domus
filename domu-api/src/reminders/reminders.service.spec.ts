@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { RemindersService } from './reminders.service';
+import { Reminder } from './entities/reminders.entity';
 import { TaskOccurrence } from '@/task-occurrences/entities/task-occurrence.entity';
 import { DeviceTokensService } from '@/device-tokens/device-tokens.service';
 
@@ -21,43 +22,52 @@ jest.mock('expo-server-sdk', () => {
 });
 
 const VALID_TOKEN = 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]';
-
-// due_date muy en el pasado => siempre dentro de la ventana de recordatorio.
 const PAST_DATE = '2020-01-01';
-// due_date muy en el futuro => aún no es momento de recordar.
-const FUTURE_DATE = '2999-01-01';
 
-function makeOccurrence(
-  overrides: Partial<TaskOccurrence> = {},
-): TaskOccurrence {
+// Un recordatorio ya vencido, cuya ocurrencia sigue vigente. El filtrado por
+// ventana (date_time <= now), asignación y completado vive en el WHERE de la
+// query, así que el servicio envía todo lo que find() devuelve.
+function makeReminder(overrides: Partial<Reminder> = {}): Reminder {
   return {
-    id: '1',
-    task_id: '10',
-    user_id: '7',
-    due_date: PAST_DATE,
-    due_time: null,
-    completed_at: null,
+    id: 100,
+    date_time: new Date(`${PAST_DATE}T00:00:00Z`),
     reminder_sent: false,
-    created_at: new Date(),
-    task: { name: 'Limpiar cocina' },
+    occurrence: {
+      id: '1',
+      user_id: '7',
+      due_date: PAST_DATE,
+      due_time: null,
+      completed_at: null,
+      task: { name: 'Limpiar cocina' },
+    },
     ...overrides,
-  } as TaskOccurrence;
+  } as Reminder;
 }
 
 describe('RemindersService', () => {
   let service: RemindersService;
-  const repo = { find: jest.fn(), save: jest.fn() };
+  const qb = {
+    delete: jest.fn().mockReturnThis(),
+    where: jest.fn().mockReturnThis(),
+    execute: jest.fn().mockResolvedValue({}),
+  };
+  const repo = {
+    find: jest.fn(),
+    save: jest.fn(),
+    createQueryBuilder: jest.fn(() => qb),
+  };
   const deviceTokens = { findByUserId: jest.fn(), deleteByToken: jest.fn() };
   let sendPush: jest.Mock;
 
   beforeEach(async () => {
     jest.clearAllMocks();
     repo.save.mockImplementation((o) => Promise.resolve(o));
+    repo.createQueryBuilder.mockReturnValue(qb);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RemindersService,
-        { provide: getRepositoryToken(TaskOccurrence), useValue: repo },
+        { provide: getRepositoryToken(Reminder), useValue: repo },
         { provide: DeviceTokensService, useValue: deviceTokens },
       ],
     }).compile();
@@ -73,25 +83,25 @@ describe('RemindersService', () => {
     expect(service).toBeDefined();
   });
 
-  // Scenarios 2/3/4/8: filtered out at the query level, never loaded.
-  it('queries only pending, un-reminded, assigned, non-deleted occurrences', async () => {
+  it('queries only due, un-sent reminders of active, assigned, non-deleted occurrences', async () => {
     repo.find.mockResolvedValue([]);
     await service.dispatchDueReminders();
 
     expect(repo.find).toHaveBeenCalledTimes(1);
     const arg = repo.find.mock.calls[0][0];
     expect(arg.where.reminder_sent).toBe(false);
-    expect(arg.where.completed_at).toBeDefined(); // IsNull()
-    expect(arg.where.user_id).toBeDefined(); // Not(IsNull())
-    expect(arg.where.task).toEqual({ deleted_at: expect.anything() });
-    expect(arg.relations).toEqual({ task: true });
+    expect(arg.where.date_time).toBeDefined(); // LessThanOrEqual(now)
+    expect(arg.where.occurrence.user_id).toBeDefined(); // Not(IsNull())
+    expect(arg.where.occurrence.completed_at).toBeDefined(); // IsNull()
+    expect(arg.where.occurrence.task).toEqual({ deleted_at: expect.anything() });
+    expect(arg.relations).toEqual({ occurrence: { task: true } });
+    expect(arg.order).toEqual({ date_time: 'ASC' });
     expect(arg.take).toBe(100);
   });
 
-  // Scenario 1
-  it('sends a push and marks reminder_sent when due and the user has tokens', async () => {
-    const occ = makeOccurrence();
-    repo.find.mockResolvedValue([occ]);
+  it('sends a high-priority push and marks the reminder sent when the user has tokens', async () => {
+    const reminder = makeReminder();
+    repo.find.mockResolvedValue([reminder]);
     deviceTokens.findByUserId.mockResolvedValue([
       { expo_push_token: VALID_TOKEN },
     ]);
@@ -103,29 +113,29 @@ describe('RemindersService', () => {
     const sentMessages = sendPush.mock.calls[0][0];
     expect(sentMessages[0]).toMatchObject({
       to: VALID_TOKEN,
-      data: { occurrence_id: '1' },
+      priority: 'high',
+      channelId: 'reminders',
+      data: { occurrence_id: '1' }, // occurrence id, not reminder id
     });
-    expect(occ.reminder_sent).toBe(true);
-    expect(repo.save).toHaveBeenCalledWith(occ);
+    expect(reminder.reminder_sent).toBe(true);
+    expect(repo.save).toHaveBeenCalledWith(reminder);
   });
 
-  // Scenario 5
-  it('marks reminder_sent without sending when the user has no tokens', async () => {
-    const occ = makeOccurrence();
-    repo.find.mockResolvedValue([occ]);
+  it('marks the reminder sent without sending when the user has no tokens', async () => {
+    const reminder = makeReminder();
+    repo.find.mockResolvedValue([reminder]);
     deviceTokens.findByUserId.mockResolvedValue([]);
 
     await service.dispatchDueReminders();
 
     expect(sendPush).not.toHaveBeenCalled();
-    expect(occ.reminder_sent).toBe(true);
-    expect(repo.save).toHaveBeenCalledWith(occ);
+    expect(reminder.reminder_sent).toBe(true);
+    expect(repo.save).toHaveBeenCalledWith(reminder);
   });
 
-  // Scenario 6
-  it('deletes a stale token on DeviceNotRegistered and still marks reminder_sent', async () => {
-    const occ = makeOccurrence();
-    repo.find.mockResolvedValue([occ]);
+  it('deletes a stale token on DeviceNotRegistered and still marks the reminder sent', async () => {
+    const reminder = makeReminder();
+    repo.find.mockResolvedValue([reminder]);
     deviceTokens.findByUserId.mockResolvedValue([
       { expo_push_token: VALID_TOKEN },
     ]);
@@ -140,20 +150,53 @@ describe('RemindersService', () => {
     await service.dispatchDueReminders();
 
     expect(deviceTokens.deleteByToken).toHaveBeenCalledWith(VALID_TOKEN);
-    expect(occ.reminder_sent).toBe(true);
-    expect(repo.save).toHaveBeenCalledWith(occ);
+    expect(reminder.reminder_sent).toBe(true);
+    expect(repo.save).toHaveBeenCalledWith(reminder);
   });
 
-  // Scenario 7
-  it('skips occurrences whose reminder window has not started yet', async () => {
-    const occ = makeOccurrence({ due_date: FUTURE_DATE });
-    repo.find.mockResolvedValue([occ]);
+  describe('scheduleForOccurrence', () => {
+    it('replaces reminders with 1h-before and at-due when the occurrence has a due_time', async () => {
+      const occ = {
+        id: '1',
+        due_date: '2020-01-01',
+        due_time: '10:00:00',
+      } as TaskOccurrence;
 
-    await service.dispatchDueReminders();
+      await service.scheduleForOccurrence(occ);
 
-    expect(deviceTokens.findByUserId).not.toHaveBeenCalled();
-    expect(sendPush).not.toHaveBeenCalled();
-    expect(repo.save).not.toHaveBeenCalled();
-    expect(occ.reminder_sent).toBe(false);
+      // borra los existentes por occurrence_id antes de recrear
+      expect(qb.delete).toHaveBeenCalled();
+      expect(qb.where).toHaveBeenCalledWith('occurrence_id = :id', { id: '1' });
+
+      const saved = repo.save.mock.calls[0][0] as Reminder[];
+      expect(saved).toHaveLength(2);
+      // APP_TIMEZONE por defecto es UTC en tests
+      expect((saved[0].date_time as Date).toISOString()).toBe(
+        '2020-01-01T09:00:00.000Z',
+      );
+      expect((saved[1].date_time as Date).toISOString()).toBe(
+        '2020-01-01T10:00:00.000Z',
+      );
+      expect(saved.every((r) => r.reminder_sent === false)).toBe(true);
+    });
+
+    it('schedules reminders at 12:00 and 23:00 when the occurrence has no due_time', async () => {
+      const occ = {
+        id: '1',
+        due_date: '2020-01-01',
+        due_time: null,
+      } as TaskOccurrence;
+
+      await service.scheduleForOccurrence(occ);
+
+      const saved = repo.save.mock.calls[0][0] as Reminder[];
+      expect(saved).toHaveLength(2);
+      expect((saved[0].date_time as Date).toISOString()).toBe(
+        '2020-01-01T12:00:00.000Z',
+      );
+      expect((saved[1].date_time as Date).toISOString()).toBe(
+        '2020-01-01T23:00:00.000Z',
+      );
+    });
   });
 });

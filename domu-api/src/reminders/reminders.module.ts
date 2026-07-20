@@ -1,16 +1,16 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { TaskOccurrence } from '@/task-occurrences/entities/task-occurrence.entity';
-import { Task } from '@/tasks/entities/task.entity';
 import { DeviceTokensModule } from '@/device-tokens/device-tokens.module';
 import { RemindersService } from './reminders.service';
 import { RemindersCron } from './reminders.cron';
+import { Reminder } from './entities/reminders.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([TaskOccurrence, Task]),
+    TypeOrmModule.forFeature([Reminder]),
     DeviceTokensModule,
   ],
   providers: [RemindersService, RemindersCron],
+  exports: [RemindersService],
 })
 export class RemindersModule {}

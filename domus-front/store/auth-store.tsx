@@ -5,6 +5,7 @@ import { z } from "zod";
 import axios from "../api/axios";
 import { router } from "expo-router";
 import { useHomeStore } from "./home-store";
+import { unregisterForPushNotificationsAsync } from "@/utils/push-notifications";
 
 // ===== Zod Schemas ====
 
@@ -151,6 +152,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 	},
 
 	logout: async () => {
+		// Desregistrar el push token ANTES de borrar el JWT (la petición va autenticada),
+		// para que quien cierra sesión deje de recibir notificaciones en este dispositivo.
+		await unregisterForPushNotificationsAsync();
 		await SecureStore.deleteItemAsync("token");
 		await AsyncStorage.removeItem("user");
 		set({ token: null, user: null });

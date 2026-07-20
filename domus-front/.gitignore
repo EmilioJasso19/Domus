@@ -41,3 +41,6 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Firebase service account key
+domus-notificatons-firebase-adminsdk-fbsvc-f9263fa690.json

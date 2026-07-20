@@ -43,7 +43,7 @@ export class AssignmentService {
     private readonly occurrencesService: TaskOccurrencesService,
   ) {}
 
-  /** Asigna automáticamente una sola ocurrencia. */
+  // Asigna automáticamente una sola ocurrencia
   async assignOccurrence(occurrenceId: string): Promise<AssignmentResult> {
     const occurrence = await this.occurrencesService.findOne(occurrenceId);
     const homeId = occurrence.task.home_id;

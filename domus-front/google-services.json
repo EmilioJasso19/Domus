@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "220088976036",
+    "project_id": "domus-notificatons",
+    "storage_bucket": "domus-notificatons.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:220088976036:android:f1c7ad2cf4617846d45c31",
+        "android_client_info": {
+          "package_name": "com.emiliojasso.domuschores"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAypHDtL2fBon3xvp9snZypogT6vPUbhiU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

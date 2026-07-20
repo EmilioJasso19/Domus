@@ -10,7 +10,6 @@ import { addDays, addMonths } from 'date-fns';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import { TaskOccurrence } from './entities/task-occurrence.entity';
 import { Task } from '@/tasks/entities/task.entity';
-import { Home } from '@/home/entities/home.entity';
 import { User } from '@/users/entities/user.entity';
 import { FrequencyType } from '@/tasks/enums/frequency-type.enum';
 import { UserHomeRoleService } from '@/user-home-role/user-home-role.service';
@@ -18,6 +17,8 @@ import { CreateTaskOccurrenceDto } from './dto/create-task-occurrence.dto';
 import { UpdateTaskOccurrenceDto } from './dto/update-task-occurrence.dto';
 import { QueryTaskOccurrencesDto } from './dto/query-task-occurrences.dto';
 import { FindOptionsWhere } from 'typeorm';
+import { RemindersService } from '@/reminders/reminders.service';
+import { HomeService } from '@/home/home.service';
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || 'UTC';
 const HOUR_MS = 60 * 60 * 1000;
@@ -29,9 +30,9 @@ export class TaskOccurrencesService {
     private readonly occurrenceRepository: Repository<TaskOccurrence>,
     @InjectRepository(Task)
     private readonly taskRepository: Repository<Task>,
-    @InjectRepository(Home)
-    private readonly homeRepository: Repository<Home>,
+    private readonly homeService: HomeService,
     private readonly uhrService: UserHomeRoleService,
+    private readonly remindersService: RemindersService
   ) { }
 
   async create(dto: CreateTaskOccurrenceDto, user: User) {
@@ -41,12 +42,15 @@ export class TaskOccurrencesService {
     }
     await this.assertMembership(user.id, task.home_id);
 
-    const occurrence = this.occurrenceRepository.create({
-      task_id: dto.task_id,
-      due_date: dto.due_date,
-      due_time: dto.due_time ?? null,
-    });
-    return this.occurrenceRepository.save(occurrence);
+    const occurrence = await this.occurrenceRepository.save(
+      this.occurrenceRepository.create({
+        task_id: dto.task_id,
+        due_date: dto.due_date,
+        due_time: dto.due_time ?? null,
+      }),
+    );
+    await this.remindersService.scheduleForOccurrence(occurrence);
+    return occurrence;
   }
 
   // Crea la primera ocurrencia de una tarea recién creada. Lo usa TasksService
@@ -57,13 +61,16 @@ export class TaskOccurrencesService {
     dueTime?: string | null,
     responsibleId?: string | null,
   ) {
-    const occurrence = this.occurrenceRepository.create({
-      task_id: taskId,
-      due_date: dueDate,
-      due_time: dueTime ?? null,
-      user_id: responsibleId ?? null,
-    });
-    return this.occurrenceRepository.save(occurrence);
+    const occurrence = await this.occurrenceRepository.save(
+      this.occurrenceRepository.create({
+        task_id: taskId,
+        due_date: dueDate,
+        due_time: dueTime ?? null,
+        user_id: responsibleId ?? null,
+      }),
+    );
+    await this.remindersService.scheduleForOccurrence(occurrence);
+    return occurrence;
   }
 
   // Lista las ocurrencias accionables de un hogar. Reemplaza el viejo GET /tasks
@@ -117,17 +124,22 @@ export class TaskOccurrencesService {
     const occurrence = await this.findOne(id);
     await this.assertMembership(user.id, occurrence.task.home_id);
 
-    // Posponer fecha/hora reabre la ventana de recordatorio para la nueva fecha.
+    // Posponer fecha/hora obliga a reprogramar los recordatorios de la ocurrencia.
+    let dueChanged = false;
     if (dto.due_date !== undefined) {
       occurrence.due_date = dto.due_date;
-      occurrence.reminder_sent = false;
+      dueChanged = true;
     }
     if (dto.due_time !== undefined) {
       occurrence.due_time = dto.due_time ?? null;
-      occurrence.reminder_sent = false;
+      dueChanged = true;
     }
 
-    return this.occurrenceRepository.save(occurrence);
+    const saved = await this.occurrenceRepository.save(occurrence);
+    if (dueChanged) {
+      await this.remindersService.scheduleForOccurrence(saved);
+    }
+    return saved;
   }
 
   async remove(id: string, user: User) {
@@ -313,11 +325,7 @@ export class TaskOccurrencesService {
     const points = Math.round(base * multiplier);
     if (points <= 0) return;
 
-    await this.homeRepository.increment(
-      { id: occurrence.task.home_id },
-      'points',
-      points,
-    );
+    await this.homeService.incrementPoints(occurrence.task.home_id, points);
   }
 
   // Genera la siguiente ocurrencia sin asignar de una tarea recurrente. No hace
@@ -358,6 +366,7 @@ export class TaskOccurrencesService {
       due_time: occurrence.due_time ?? null,
       user_id: null,
     });
-    await this.occurrenceRepository.save(nextOccurrence);
+    const saved = await this.occurrenceRepository.save(nextOccurrence);
+    await this.remindersService.scheduleForOccurrence(saved);
   }
 }

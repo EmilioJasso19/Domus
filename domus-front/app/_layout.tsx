@@ -36,6 +36,8 @@ function RootLayoutNav() {
 	// usuario deniega permisos, el helper omite el registro sin bloquear.
 	useEffect(() => {
 		if (token) {
+			// Re-registra el push token en cada arranque con sesión: mantiene la BD
+			// fresca sin necesidad de un listener en runtime (que provocaba un bucle).
 			registerForPushNotificationsAsync();
 		}
 	}, [token]);

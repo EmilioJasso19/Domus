@@ -11,3 +11,11 @@ export async function registerDeviceToken(
 		platform,
 	});
 }
+
+// Borra el token de este dispositivo (p.ej. al cerrar sesión). El token de Expo
+// contiene corchetes, así que se codifica para el path param.
+export async function unregisterDeviceToken(
+	expoPushToken: string,
+): Promise<void> {
+	await axios.delete(`/device-tokens/${encodeURIComponent(expoPushToken)}`);
+}

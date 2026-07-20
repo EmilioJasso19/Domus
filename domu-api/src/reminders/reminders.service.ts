@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Not, Repository } from 'typeorm';
+import { IsNull, LessThanOrEqual, Not, Repository } from 'typeorm';
 import { subHours } from 'date-fns';
 import { fromZonedTime, formatInTimeZone } from 'date-fns-tz';
 import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
-import { TaskOccurrence } from '@/task-occurrences/entities/task-occurrence.entity';
 import { DeviceTokensService } from '@/device-tokens/device-tokens.service';
+import { Reminder } from './entities/reminders.entity';
+import { TaskOccurrence } from '@/task-occurrences/entities/task-occurrence.entity';
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || 'UTC';
 
@@ -16,67 +17,77 @@ export class RemindersService {
   private readonly expo = new Expo();
 
   constructor(
-    @InjectRepository(TaskOccurrence)
-    private readonly occurrenceRepository: Repository<TaskOccurrence>,
+    @InjectRepository(Reminder)
+    private readonly reminderRepository: Repository<Reminder>,
     private readonly deviceTokensService: DeviceTokensService,
-  ) {}
+  ) { }
 
-  // Llamado por el cron cada minuto. Toma las ocurrencias pendientes que aún no
-  // han recordado y, para las que ya entraron en su ventana, envía el push y
-  // marca reminder_sent para no repetir.
+  async findByOccurrence(occurrenceId: string): Promise<Reminder[]> {
+    return this.reminderRepository.find({
+      where: { occurrence: { id: occurrenceId } },
+    });
+  }
+
+  // Regenera los recordatorios de una ocurrencia (borra y recrea) para que su
+  // date_time refleje la due_date/due_time actual:
+  //  - con hora: 1h antes y a la hora de vencimiento
+  //  - sin hora: 12:00 y 23:00 (APP_TIMEZONE)
+  async scheduleForOccurrence(occurrence: TaskOccurrence): Promise<void> {
+    await this.reminderRepository
+      .createQueryBuilder()
+      .delete()
+      .where('occurrence_id = :id', { id: occurrence.id })
+      .execute();
+
+    const at = (t: string) =>
+      fromZonedTime(`${occurrence.due_date}T${t}`, APP_TIMEZONE);
+    const times = occurrence.due_time
+      ? [subHours(at(occurrence.due_time), 1), at(occurrence.due_time)]
+      : [at('12:00:00'), at('23:00:00')];
+
+    await this.reminderRepository.save(
+      times.map((date_time) => ({ occurrence, date_time, reminder_sent: false })),
+    );
+  }
+
+  // Llamado por el cron cada minuto. Envía los recordatorios cuya date_time ya
+  // llegó y cuya ocurrencia sigue vigente (asignada, sin completar, tarea viva),
+  // marcándolos para no repetir.
   async dispatchDueReminders(): Promise<void> {
-    const occurrences = await this.occurrenceRepository.find({
+    const pending = await this.reminderRepository.find({
       where: {
-        completed_at: IsNull(),
         reminder_sent: false,
-        user_id: Not(IsNull()),
-        task: { deleted_at: IsNull() },
+        date_time: LessThanOrEqual(new Date()),
+        occurrence: {
+          user_id: Not(IsNull()), // con responsable asignado
+          completed_at: IsNull(), // sin completar
+          task: { deleted_at: IsNull() }, // tarea no eliminada
+        },
       },
-      relations: { task: true },
+      relations: { occurrence: { task: true } },
+      order: { date_time: 'ASC' },
       take: 100,
     });
 
-    for (const occurrence of occurrences) {
-      if (!this.shouldRemind(occurrence)) continue;
-
+    for (const reminder of pending) {
       try {
-        await this.sendForOccurrence(occurrence);
+        await this.sendForOccurrence(reminder);
       } catch (err) {
         this.logger.error(
-          `Failed sending reminder for occurrence ${occurrence.id}`,
+          `Failed sending reminder for occurrence ${reminder.occurrence.id}`,
           err instanceof Error ? err.stack : String(err),
         );
       }
 
-      // Se marca aunque el envío falle: el recordatorio es best-effort y no debe
-      // reintentarse en bucle cada minuto.
-      occurrence.reminder_sent = true;
-      await this.occurrenceRepository.save(occurrence);
+      // Se marca aunque el envío falle: best-effort, no se reintenta en bucle.
+      reminder.reminder_sent = true;
+      await this.reminderRepository.save(reminder);
     }
   }
 
-  // ¿Ya estamos dentro de la ventana de recordatorio?
-  private shouldRemind(occurrence: TaskOccurrence): boolean {
-    return Date.now() >= this.reminderTarget(occurrence).getTime();
-  }
-
-  // Momento a partir del cual se debe recordar, en APP_TIMEZONE:
-  //  - con hora: 1h antes del vencimiento
-  //  - sin hora: a las 08:00 del día de vencimiento
-  private reminderTarget(occurrence: TaskOccurrence): Date {
-    if (occurrence.due_time) {
-      const due = fromZonedTime(
-        `${occurrence.due_date}T${occurrence.due_time}`,
-        APP_TIMEZONE,
-      );
-      return subHours(due, 1);
-    }
-    return fromZonedTime(`${occurrence.due_date}T08:00:00`, APP_TIMEZONE);
-  }
-
-  private async sendForOccurrence(occurrence: TaskOccurrence): Promise<void> {
+  private async sendForOccurrence(reminder: Reminder): Promise<void> {
     const tokens = await this.deviceTokensService.findByUserId(
-      occurrence.user_id!,
+      reminder.occurrence.user_id!,
     );
     const valid = tokens.filter((t) => Expo.isExpoPushToken(t.expo_push_token));
     if (valid.length === 0) return;
@@ -84,9 +95,11 @@ export class RemindersService {
     const messages: ExpoPushMessage[] = valid.map((t) => ({
       to: t.expo_push_token,
       sound: 'default',
+      priority: 'high', // Android: despierta el dispositivo y entrega de inmediato
+      channelId: 'reminders', // debe coincidir con el canal registrado en la app
       title: '📋 Tarea por vencer',
-      body: `"${occurrence.task.name}" — Vence ${this.formatDue(occurrence)}`,
-      data: { occurrence_id: occurrence.id },
+      body: `"${reminder.occurrence.task.name}" — Vence ${this.formatDue(reminder)}`,
+      data: { occurrence_id: String(reminder.occurrence.id) },
     }));
 
     const chunks = this.expo.chunkPushNotifications(messages);
@@ -114,17 +127,17 @@ export class RemindersService {
     }
   }
 
-  private formatDue(occurrence: TaskOccurrence): string {
-    const target = occurrence.due_time
+  private formatDue(reminder: Reminder): string {
+    const target = reminder.occurrence.due_time
       ? fromZonedTime(
-          `${occurrence.due_date}T${occurrence.due_time}`,
-          APP_TIMEZONE,
-        )
-      : fromZonedTime(`${occurrence.due_date}T08:00:00`, APP_TIMEZONE);
+        `${reminder.occurrence.due_date}T${reminder.occurrence.due_time}`,
+        APP_TIMEZONE,
+      )
+      : fromZonedTime(`${reminder.occurrence.due_date}T08:00:00`, APP_TIMEZONE);
     return formatInTimeZone(
       target,
       APP_TIMEZONE,
-      occurrence.due_time ? 'd MMM HH:mm' : 'd MMM',
+      reminder.occurrence.due_time ? 'd MMM HH:mm' : 'd MMM',
     );
   }
 }

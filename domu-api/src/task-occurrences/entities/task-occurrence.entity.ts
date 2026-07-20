@@ -41,8 +41,8 @@ export class TaskOccurrence {
   @Column({ type: 'timestamptz', nullable: true })
   completed_at?: Date | null;
 
-  @Column({ type: 'boolean', default: false })
-  reminder_sent!: boolean;
+  // @Column({ type: 'boolean', default: false })
+  // reminder_sent!: boolean;
 
   @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   created_at!: Date;

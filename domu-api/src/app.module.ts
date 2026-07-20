@@ -18,10 +18,12 @@ import { TaskOccurrencesModule } from './task-occurrences/task-occurrences.modul
 import { VirtualPetModule } from './virtual-pet/virtual-pet.module';
 import { DeviceTokensModule } from './device-tokens/device-tokens.module';
 import { RemindersModule } from './reminders/reminders.module';
+import { DiscordModule } from './common/discord/discord.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
+    DiscordModule,
     ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',

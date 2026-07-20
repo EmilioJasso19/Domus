@@ -461,4 +461,8 @@ export class HomeService {
       .limit(20)
       .getRawMany();
   }
+
+  async incrementPoints(homeId: string, points: number) {
+    await this.homeRepository.increment({ id: homeId }, 'points', points);
+  }
 }
