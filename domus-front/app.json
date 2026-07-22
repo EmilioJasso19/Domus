@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "domus-front",
+    "name": "DomusChores",
     "slug": "domus-front",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/domus-icon.png",
     "scheme": "domusfront",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -52,6 +52,12 @@
       "eas": {
         "projectId": "663465be-5d0f-42c4-a581-7f5db84b130a"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/663465be-5d0f-42c4-a581-7f5db84b130a"
     }
   }
 }

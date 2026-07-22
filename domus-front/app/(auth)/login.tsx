@@ -64,7 +64,7 @@ export default function LoginScreen() {
 				{/* Header: logo + título + subtítulo */}
 				<View className="items-center pt-20 pb-8 px-6 gap-3">
 					<Image
-						source={require("../../assets/images/domus-logo-ai.png")}
+						source={require("../../assets/images/domus-logo.png")}
 						className="w-20 h-20"
 					/>
 					<View className="items-center gap-1">

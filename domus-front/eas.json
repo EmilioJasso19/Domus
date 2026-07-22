@@ -13,6 +13,7 @@
       "android": {
         "buildType": "apk"
       },
+      "channel": "preview",
       "env": { "EXPO_PUBLIC_API_URL": "https://domusv2-domuschoresv2-3hwjgq-870f49-146-190-223-31.sslip.io" }
     },
     "production": {
