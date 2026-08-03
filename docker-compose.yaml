@@ -15,21 +15,35 @@ services:
         condition: service_healthy
     environment:
       - CHOKIDAR_USEPOLLING=true
+    restart: unless-stopped
+    healthcheck:
+      # node:22-alpine no trae curl; wget viene incluido en busybox.
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/hello || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s   # margen para el arranque de Nest
 
   db:
     image: postgres:16-alpine
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     environment:
-      POSTGRES_USER: emilio
-      POSTGRES_PASSWORD: dev
-      POSTGRES_DB: domu_dev
+      # Vienen del .env de la raíz; los defaults coinciden con domu-api/.env
+      POSTGRES_USER: ${POSTGRES_USER:-emilio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev}
+      POSTGRES_DB: ${POSTGRES_DB:-domu_dev}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U emilio -d domu_dev"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-emilio} -d ${POSTGRES_DB:-domu_dev}",
+        ]
       interval: 5s
       retries: 5
+    restart: unless-stopped
 
 volumes:
   pgdata:

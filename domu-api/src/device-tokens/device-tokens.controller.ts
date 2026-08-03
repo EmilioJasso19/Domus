@@ -17,17 +17,28 @@ import { User } from '@/users/entities/user.entity';
 export class DeviceTokensController {
   constructor(private readonly service: DeviceTokensService) {}
 
-  // Registra (o reasigna) el token de push del dispositivo del usuario actual.
+  // Alta o latido del dispositivo actual: crea el registro si es nuevo y, si ya
+  // existía, actualiza el token y refresca last_seen_at.
   @Post()
   async register(
     @Body() dto: RegisterDeviceTokenDto,
     @AuthUser() user: User,
   ): Promise<void> {
-    await this.service.register(user.id, dto.expo_push_token, dto.platform);
+    await this.service.registerOrTouch(user.id, {
+      deviceId: dto.device_id,
+      expoPushToken: dto.expo_push_token,
+      platform: dto.platform,
+    });
   }
 
+  // Da de baja el token de ESTE dispositivo para el usuario autenticado. El
+  // borrado va acotado al user_id para que nadie pueda desregistrar tokens
+  // ajenos conociendo (o adivinando) el token.
   @Delete(':token')
-  async unregister(@Param('token') token: string): Promise<void> {
-    await this.service.deleteByToken(token);
+  async unregister(
+    @Param('token') token: string,
+    @AuthUser() user: User,
+  ): Promise<void> {
+    await this.service.deleteByUserAndToken(user.id, token);
   }
 }

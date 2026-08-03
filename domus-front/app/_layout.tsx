@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useHomeStore } from "@/store/home-store";
 import { registerForPushNotificationsAsync } from "@/utils/push-notifications";
+import { AppState } from "react-native";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -35,11 +36,20 @@ function RootLayoutNav() {
 	// Con sesión iniciada, registramos el token de push del dispositivo. Si el
 	// usuario deniega permisos, el helper omite el registro sin bloquear.
 	useEffect(() => {
-		if (token) {
-			// Re-registra el push token en cada arranque con sesión: mantiene la BD
-			// fresca sin necesidad de un listener en runtime (que provocaba un bucle).
-			registerForPushNotificationsAsync();
-		}
+		if (!token) return;
+
+		// Al arrancar con sesión (y al iniciar sesión).
+		registerForPushNotificationsAsync();
+
+		// Latido: cada vuelta a primer plano refresca last_seen_at en el backend,
+		// que es la señal con la que distingue dispositivos vivos de abandonados.
+		// El helper aplica su propio guard temporal (6 h), así que alternar de app
+		// no dispara una petición por cada cambio.
+		const subscription = AppState.addEventListener("change", (state) => {
+			if (state === "active") registerForPushNotificationsAsync();
+		});
+
+		return () => subscription.remove();
 	}, [token]);
 
 	useEffect(() => {

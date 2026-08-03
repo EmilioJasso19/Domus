@@ -7,8 +7,8 @@ import { User } from '@/users/entities/user.entity';
 describe('DeviceTokensController', () => {
   let controller: DeviceTokensController;
   const service = {
-    register: jest.fn(),
-    deleteByToken: jest.fn(),
+    registerOrTouch: jest.fn(),
+    deleteByUserAndToken: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -30,19 +30,24 @@ describe('DeviceTokensController', () => {
 
   it('register delegates to the service with the auth user id', async () => {
     await controller.register(
-      { expo_push_token: 'ExponentPushToken[abc]', platform: 'ios' },
+      {
+        device_id: 'device-1',
+        expo_push_token: 'ExponentPushToken[abc]',
+        platform: 'ios',
+      },
       { id: '7' } as User,
     );
-    expect(service.register).toHaveBeenCalledWith(
-      '7',
-      'ExponentPushToken[abc]',
-      'ios',
-    );
+    expect(service.registerOrTouch).toHaveBeenCalledWith('7', {
+      deviceId: 'device-1',
+      expoPushToken: 'ExponentPushToken[abc]',
+      platform: 'ios',
+    });
   });
 
-  it('unregister delegates to the service', async () => {
-    await controller.unregister('ExponentPushToken[abc]');
-    expect(service.deleteByToken).toHaveBeenCalledWith(
+  it('unregister only removes the token of the auth user', async () => {
+    await controller.unregister('ExponentPushToken[abc]', { id: '7' } as User);
+    expect(service.deleteByUserAndToken).toHaveBeenCalledWith(
+      '7',
       'ExponentPushToken[abc]',
     );
   });

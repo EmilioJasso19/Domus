@@ -20,6 +20,7 @@ jest.mock('expo-server-sdk', () => {
 });
 
 const VALID_TOKEN = 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]';
+const OTHER_TOKEN = 'ExponentPushToken[yyyyyyyyyyyyyyyyyyyyyy]';
 const payload = {
   title: 'Título',
   body: 'Cuerpo',
@@ -29,7 +30,11 @@ const payload = {
 
 describe('PushNotificationsService', () => {
   let service: PushNotificationsService;
-  const deviceTokens = { findByUserId: jest.fn(), deleteByToken: jest.fn() };
+  const deviceTokens = {
+    findByUserIds: jest.fn(),
+    deleteByToken: jest.fn(),
+    markSuccess: jest.fn(),
+  };
   let sendPush: jest.Mock;
 
   beforeEach(async () => {
@@ -54,13 +59,13 @@ describe('PushNotificationsService', () => {
   });
 
   it('envía un push de alta prioridad al token válido del usuario', async () => {
-    deviceTokens.findByUserId.mockResolvedValue([
+    deviceTokens.findByUserIds.mockResolvedValue([
       { expo_push_token: VALID_TOKEN },
     ]);
 
     await service.sendToUser('7', payload);
 
-    expect(deviceTokens.findByUserId).toHaveBeenCalledWith('7');
+    expect(deviceTokens.findByUserIds).toHaveBeenCalledWith(['7']);
     expect(sendPush).toHaveBeenCalledTimes(1);
     expect(sendPush.mock.calls[0][0][0]).toMatchObject({
       to: VALID_TOKEN,
@@ -72,20 +77,33 @@ describe('PushNotificationsService', () => {
     });
   });
 
-  it('envía a todos los usuarios que tienen tokens válidos', async () => {
-    deviceTokens.findByUserId
-      .mockResolvedValueOnce([{ expo_push_token: VALID_TOKEN }])
-      .mockResolvedValueOnce([{ expo_push_token: VALID_TOKEN }]);
+  it('resuelve todos los destinatarios en una sola consulta', async () => {
+    deviceTokens.findByUserIds.mockResolvedValue([
+      { expo_push_token: VALID_TOKEN },
+      { expo_push_token: OTHER_TOKEN },
+    ]);
 
     await service.sendToUsers(['7', '8'], payload);
 
-    expect(deviceTokens.findByUserId).toHaveBeenCalledWith('7');
-    expect(deviceTokens.findByUserId).toHaveBeenCalledWith('8');
+    expect(deviceTokens.findByUserIds).toHaveBeenCalledTimes(1);
+    expect(deviceTokens.findByUserIds).toHaveBeenCalledWith(['7', '8']);
     expect(sendPush.mock.calls[0][0]).toHaveLength(2);
   });
 
+  it('deduplica destinatarios y tokens repetidos', async () => {
+    deviceTokens.findByUserIds.mockResolvedValue([
+      { expo_push_token: VALID_TOKEN },
+      { expo_push_token: VALID_TOKEN },
+    ]);
+
+    await service.sendToUsers(['7', '7'], payload);
+
+    expect(deviceTokens.findByUserIds).toHaveBeenCalledWith(['7']);
+    expect(sendPush.mock.calls[0][0]).toHaveLength(1);
+  });
+
   it('no envía nada si el usuario no tiene tokens', async () => {
-    deviceTokens.findByUserId.mockResolvedValue([]);
+    deviceTokens.findByUserIds.mockResolvedValue([]);
 
     await service.sendToUser('7', payload);
 
@@ -93,7 +111,7 @@ describe('PushNotificationsService', () => {
   });
 
   it('ignora los tokens que no son de Expo', async () => {
-    deviceTokens.findByUserId.mockResolvedValue([
+    deviceTokens.findByUserIds.mockResolvedValue([
       { expo_push_token: 'not-an-expo-token' },
     ]);
 
@@ -103,7 +121,7 @@ describe('PushNotificationsService', () => {
   });
 
   it('borra un token obsoleto en DeviceNotRegistered', async () => {
-    deviceTokens.findByUserId.mockResolvedValue([
+    deviceTokens.findByUserIds.mockResolvedValue([
       { expo_push_token: VALID_TOKEN },
     ]);
     sendPush.mockResolvedValueOnce([
@@ -117,5 +135,27 @@ describe('PushNotificationsService', () => {
     await service.sendToUser('7', payload);
 
     expect(deviceTokens.deleteByToken).toHaveBeenCalledWith(VALID_TOKEN);
+    expect(deviceTokens.markSuccess).toHaveBeenCalledWith([]);
+  });
+
+  it('sella last_success_at en los tickets aceptados', async () => {
+    deviceTokens.findByUserIds.mockResolvedValue([
+      { expo_push_token: VALID_TOKEN },
+      { expo_push_token: OTHER_TOKEN },
+    ]);
+    sendPush.mockResolvedValueOnce([
+      { status: 'ok', id: 'ticket-1' },
+      {
+        status: 'error',
+        message: 'not registered',
+        details: { error: 'DeviceNotRegistered' },
+      },
+    ]);
+
+    await service.sendToUsers(['7', '8'], payload);
+
+    expect(deviceTokens.markSuccess).toHaveBeenCalledWith([VALID_TOKEN]);
+    expect(deviceTokens.deleteByToken).toHaveBeenCalledWith(OTHER_TOKEN);
+    expect(deviceTokens.deleteByToken).toHaveBeenCalledTimes(1);
   });
 });

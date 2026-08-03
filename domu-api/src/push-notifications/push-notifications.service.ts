@@ -31,17 +31,23 @@ export class PushNotificationsService {
   }
 
   async sendToUsers(userIds: string[], payload: PushPayload): Promise<void> {
-    const tokens = (
-      await Promise.all(
-        userIds.map((id) => this.deviceTokensService.findByUserId(id)),
-      )
-    ).flat();
+    // Una sola consulta para todos los destinatarios en lugar de una por usuario.
+    const tokens = await this.deviceTokensService.findByUserIds([
+      ...new Set(userIds),
+    ]);
 
-    const valid = tokens.filter((t) => Expo.isExpoPushToken(t.expo_push_token));
+    // Set: un mismo dispositivo nunca debe recibir el aviso dos veces.
+    const valid = [
+      ...new Set(
+        tokens
+          .map((t) => t.expo_push_token)
+          .filter((token) => Expo.isExpoPushToken(token)),
+      ),
+    ];
     if (valid.length === 0) return;
 
-    const messages: ExpoPushMessage[] = valid.map((t) => ({
-      to: t.expo_push_token,
+    const messages: ExpoPushMessage[] = valid.map((token) => ({
+      to: token,
       sound: 'default',
       priority: 'high', // Android: despierta el dispositivo y entrega de inmediato
       channelId: payload.channelId,
@@ -64,21 +70,45 @@ export class PushNotificationsService {
     }
   }
 
-  // Limpia tokens que Expo reporta como ya no registrados en el dispositivo.
+  /**
+   * Procesa los tickets de un chunk. Expo los devuelve en el mismo orden que los
+   * mensajes enviados, así que el índice basta para recuperar el token.
+   *
+   * - status 'ok': Expo aceptó el mensaje para entrega -> sella last_success_at.
+   * - DeviceNotRegistered: la app ya no está instalada -> se borra el registro.
+   *
+   * Ojo: un ticket 'ok' no garantiza la entrega final, solo la aceptación. Los
+   * errores definitivos llegan más tarde vía la API de receipts, que todavía no
+   * consultamos; por eso la limpieza por tickets es parcial y la completa el
+   * cron de dispositivos obsoletos.
+   */
   private async handleTickets(
     chunk: ExpoPushMessage[],
     tickets: ExpoPushTicket[],
   ): Promise<void> {
+    const accepted: string[] = [];
+    const unregistered: string[] = [];
+
     for (let i = 0; i < tickets.length; i++) {
       const ticket = tickets[i];
-      if (
-        ticket.status === 'error' &&
-        ticket.details?.error === 'DeviceNotRegistered'
-      ) {
-        const to = chunk[i]?.to;
-        const token = Array.isArray(to) ? to[0] : to;
-        if (token) await this.deviceTokensService.deleteByToken(token);
+      const to = chunk[i]?.to;
+      const token = Array.isArray(to) ? to[0] : to;
+      if (!token) continue;
+
+      if (ticket.status === 'ok') {
+        accepted.push(token);
+      } else if (ticket.details?.error === 'DeviceNotRegistered') {
+        unregistered.push(token);
+      } else {
+        this.logger.warn(
+          `Expo rechazó el envío al token ${token}: ${ticket.message}`,
+        );
       }
+    }
+
+    await this.deviceTokensService.markSuccess(accepted);
+    for (const token of unregistered) {
+      await this.deviceTokensService.deleteByToken(token);
     }
   }
 }

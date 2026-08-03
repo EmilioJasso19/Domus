@@ -46,6 +46,9 @@ export type LoginForm = z.infer<typeof loginSchema>;
 
 // ===== Store ====
 
+// Tope de espera para el desregistro del push token al cerrar sesión.
+const LOGOUT_UNREGISTER_TIMEOUT_MS = 3000;
+
 interface AuthState {
 	token: string | null;
 	isHydrated: boolean;
@@ -152,17 +155,34 @@ export const useAuthStore = create<AuthState>((set) => ({
 	},
 
 	logout: async () => {
-		// Desregistrar el push token ANTES de borrar el JWT (la petición va autenticada),
-		// para que quien cierra sesión deje de recibir notificaciones en este dispositivo.
-		await unregisterForPushNotificationsAsync();
-		await SecureStore.deleteItemAsync("token");
-		await AsyncStorage.removeItem("user");
-		set({ token: null, user: null });
+		// Desregistrar el push token ANTES de borrar el JWT (la petición va
+		// autenticada), para que quien cierra sesión deje de recibir notificaciones
+		// en este dispositivo.
+		//
+		// Pero con un tope de tiempo: sin red, la petición puede quedarse colgada y
+		// el usuario no debe quedarse atrapado dentro de la sesión por eso. Si se
+		// agota el plazo, el cierre local sigue adelante y el registro huérfano lo
+		// retira el backend después (al reasignarse el token en el siguiente login
+		// de este dispositivo, o por el cron de dispositivos inactivos).
+		await Promise.race([
+			unregisterForPushNotificationsAsync(),
+			new Promise((resolve) =>
+				setTimeout(resolve, LOGOUT_UNREGISTER_TIMEOUT_MS),
+			),
+		]);
 
-		// Limpiar también los hogares
-		await useHomeStore.getState().clearHouseholds();
-
-		router.push("(auth)/login");
+		// El estado local se limpia pase lo que pase: dejar la sesión a medias sería
+		// peor que no haber podido desregistrar el token.
+		try {
+			await SecureStore.deleteItemAsync("token");
+			await AsyncStorage.removeItem("user");
+			await useHomeStore.getState().clearHouseholds();
+		} catch (e) {
+			console.error("[auth] fallo al limpiar el estado local en logout:", e);
+		} finally {
+			set({ token: null, user: null });
+			router.push("(auth)/login");
+		}
 	},
 
 	clearError: () => set({ error: null }),

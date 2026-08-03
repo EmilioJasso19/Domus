@@ -1,12 +1,15 @@
 import axios from "@/api/axios";
 
-// Registra (o reasigna) el token de push del dispositivo del usuario autenticado.
-// El JWT lo adjunta el interceptor de axios.
+// Alta o latido del dispositivo del usuario autenticado: el backend identifica
+// el registro por (usuario, device_id), así que un token nuevo actualiza la fila
+// existente en vez de crear una duplicada. El JWT lo adjunta el interceptor.
 export async function registerDeviceToken(
+	deviceId: string,
 	expoPushToken: string,
 	platform: string,
 ): Promise<void> {
 	await axios.post("/device-tokens", {
+		device_id: deviceId,
 		expo_push_token: expoPushToken,
 		platform,
 	});
