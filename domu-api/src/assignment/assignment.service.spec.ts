@@ -1,11 +1,19 @@
 import { AssignmentService } from './assignment.service';
+// expo-server-sdk es ESM-only; la cadena de dependencias lo carga a resolver.
+jest.mock('expo-server-sdk', () => ({ Expo: class {} }));
 import { FrequencyType } from '@/tasks/enums/frequency-type.enum';
 
 // weekday (lowercase) de una fecha YYYY-MM-DD, igual que el mapeo del service.
 const dayOf = (d: string) =>
-  ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][
-    new Date(`${d}T00:00:00Z`).getUTCDay()
-  ];
+  [
+    'sunday',
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+  ][new Date(`${d}T00:00:00Z`).getUTCDay()];
 
 const member = (id: string) => ({ user_id: id, user: { id } });
 
@@ -130,7 +138,11 @@ describe('AssignmentService', () => {
       occurrences.findOne.mockResolvedValue(occ);
       uhr.findAllByHome.mockResolvedValue([member('1'), member('2')]);
       blocked.findAll.mockResolvedValue([
-        { day: dayOf(occ.due_date), start_time: '00:00:00', end_time: '23:59:00' },
+        {
+          day: dayOf(occ.due_date),
+          start_time: '00:00:00',
+          end_time: '23:59:00',
+        },
       ]);
 
       const result = await service.assignOccurrence('1');
@@ -236,9 +248,13 @@ describe('AssignmentService', () => {
   // C30 — Al salir del hogar, el FK ON DELETE CASCADE elimina los blocked_schedules
   // del usuario. Es una garantía a nivel de base de datos; requiere prueba e2e con
   // PostgreSQL real (la suite unitaria mockea el repositorio).
-  it.todo('C30: el cascade de blocked_schedules al salir requiere prueba e2e con BD');
+  it.todo(
+    'C30: el cascade de blocked_schedules al salir requiere prueba e2e con BD',
+  );
 
   // C52 — El aviso de fecha de entrega lejana es una validación de UI (modal de
   // confirmación en domus-front/app/(tabs)/tasks.tsx). No tiene lógica de backend.
-  it.todo('C52: el aviso de fecha lejana es frontend-only (sin objetivo de backend)');
+  it.todo(
+    'C52: el aviso de fecha lejana es frontend-only (sin objetivo de backend)',
+  );
 });

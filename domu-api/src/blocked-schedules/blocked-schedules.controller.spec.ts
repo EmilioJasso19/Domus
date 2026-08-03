@@ -1,4 +1,3 @@
-
 import { Test, TestingModule } from '@nestjs/testing';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { BlockedSchedulesController } from './blocked-schedules.controller';
@@ -32,7 +31,9 @@ describe('BlockedSchedulesController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [BlockedSchedulesController],
-      providers: [{ provide: BlockedSchedulesService, useFactory: mockService }],
+      providers: [
+        { provide: BlockedSchedulesService, useFactory: mockService },
+      ],
     }).compile();
 
     controller = module.get(BlockedSchedulesController);
@@ -57,7 +58,9 @@ describe('BlockedSchedulesController', () => {
 
     it('propaga la excepción si el usuario no pertenece al hogar (C31)', async () => {
       service.create.mockRejectedValue(new ForbiddenException());
-      await expect(controller.create(dto, authUser)).rejects.toThrow(ForbiddenException);
+      await expect(controller.create(dto, authUser)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 
@@ -88,12 +91,16 @@ describe('BlockedSchedulesController', () => {
 
     it('propaga Forbidden al editar horario ajeno (C38)', async () => {
       service.update.mockRejectedValue(new ForbiddenException());
-      await expect(controller.update('100', {}, authUser)).rejects.toThrow(ForbiddenException);
+      await expect(controller.update('100', {}, authUser)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('propaga NotFound al editar horario inexistente (C36)', async () => {
       service.update.mockRejectedValue(new NotFoundException());
-      await expect(controller.update('404', {}, authUser)).rejects.toThrow(NotFoundException);
+      await expect(controller.update('404', {}, authUser)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -109,7 +116,9 @@ describe('BlockedSchedulesController', () => {
 
     it('propaga Forbidden al eliminar horario ajeno (C38)', async () => {
       service.remove.mockRejectedValue(new ForbiddenException());
-      await expect(controller.remove('100', authUser)).rejects.toThrow(ForbiddenException);
+      await expect(controller.remove('100', authUser)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 });

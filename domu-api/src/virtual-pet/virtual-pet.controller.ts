@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { VirtualPetService } from './virtual-pet.service';
 import { CreateVirtualPetDto } from './dto/create-virtual-pet.dto';
 import { UpdateVirtualPetDto } from './dto/update-virtual-pet.dto';
@@ -21,7 +30,11 @@ export class VirtualPetController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateVirtualPetDto: UpdateVirtualPetDto, @AuthUser() authUser) {
+  update(
+    @Param('id') id: string,
+    @Body() updateVirtualPetDto: UpdateVirtualPetDto,
+    @AuthUser() authUser,
+  ) {
     return this.virtualPetService.update(id, updateVirtualPetDto, authUser);
   }
 

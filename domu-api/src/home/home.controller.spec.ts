@@ -8,6 +8,9 @@ import {
 import { HomeController } from './home.controller';
 import { HomeService } from './home.service';
 
+// expo-server-sdk es ESM-only; HomeService los carga transitivamente al resolver.
+jest.mock('expo-server-sdk', () => ({ Expo: class {} }));
+
 // ── Mock del HomeService ──────────────────────────────────────────────────────
 const mockHomeService = {
   create: jest.fn(),
@@ -50,9 +53,15 @@ describe('HomeController', () => {
     it('C09: debe llamar a homeService.create y devolver el hogar creado', async () => {
       mockHomeService.create.mockResolvedValue(mockHome);
 
-      const result = await controller.create({ name: 'Casa Jasso' } as any, mockUser);
+      const result = await controller.create(
+        { name: 'Casa Jasso' } as any,
+        mockUser,
+      );
 
-      expect(mockHomeService.create).toHaveBeenCalledWith({ name: 'Casa Jasso' }, mockUser);
+      expect(mockHomeService.create).toHaveBeenCalledWith(
+        { name: 'Casa Jasso' },
+        mockUser,
+      );
       expect(result).toEqual(mockHome);
     });
 
@@ -72,9 +81,15 @@ describe('HomeController', () => {
     it('C10: debe llamar a homeService.join y devolver el hogar', async () => {
       mockHomeService.join.mockResolvedValue(mockHome);
 
-      const result = await controller.join({ invitation_code: 'abc123' } as any, memberUser);
+      const result = await controller.join(
+        { invitation_code: 'abc123' } as any,
+        memberUser,
+      );
 
-      expect(mockHomeService.join).toHaveBeenCalledWith({ invitation_code: 'abc123' }, memberUser);
+      expect(mockHomeService.join).toHaveBeenCalledWith(
+        { invitation_code: 'abc123' },
+        memberUser,
+      );
       expect(result).toEqual(mockHome);
     });
 
@@ -115,7 +130,9 @@ describe('HomeController', () => {
     it('C19: debe propagar NotFoundException si el hogar no existe', async () => {
       mockHomeService.findOne.mockRejectedValue(new NotFoundException());
 
-      await expect(controller.findOne('999', mockUser)).rejects.toThrow(NotFoundException);
+      await expect(controller.findOne('999', mockUser)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

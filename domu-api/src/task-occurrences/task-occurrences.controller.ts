@@ -48,7 +48,11 @@ export class TaskOccurrencesController {
     @Body() updateTaskOccurrenceDto: UpdateTaskOccurrenceDto,
     @AuthUser() user: User,
   ) {
-    return this.taskOccurrencesService.update(id, updateTaskOccurrenceDto, user);
+    return this.taskOccurrencesService.update(
+      id,
+      updateTaskOccurrenceDto,
+      user,
+    );
   }
 
   @Patch(':id/toggle-completion')

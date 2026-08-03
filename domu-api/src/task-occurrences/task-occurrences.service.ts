@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -19,12 +20,15 @@ import { QueryTaskOccurrencesDto } from './dto/query-task-occurrences.dto';
 import { FindOptionsWhere } from 'typeorm';
 import { RemindersService } from '@/reminders/reminders.service';
 import { HomeService } from '@/home/home.service';
+import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || 'UTC';
 const HOUR_MS = 60 * 60 * 1000;
 
 @Injectable()
 export class TaskOccurrencesService {
+  private readonly logger = new Logger(TaskOccurrencesService.name);
+
   constructor(
     @InjectRepository(TaskOccurrence)
     private readonly occurrenceRepository: Repository<TaskOccurrence>,
@@ -32,8 +36,9 @@ export class TaskOccurrencesService {
     private readonly taskRepository: Repository<Task>,
     private readonly homeService: HomeService,
     private readonly uhrService: UserHomeRoleService,
-    private readonly remindersService: RemindersService
-  ) { }
+    private readonly remindersService: RemindersService,
+    private readonly pushNotificationsService: PushNotificationsService,
+  ) {}
 
   async create(dto: CreateTaskOccurrenceDto, user: User) {
     const task = await this.taskRepository.findOneBy({ id: dto.task_id });
@@ -55,6 +60,8 @@ export class TaskOccurrencesService {
 
   // Crea la primera ocurrencia de una tarea recién creada. Lo usa TasksService
   // para que la plantilla nazca con una instancia accionable y asignable.
+  // Si se indica responsable, la asignación se delega en setResponsible para
+  // que la notificación de "tarea asignada" se dispare en un único punto.
   async createForTask(
     taskId: string,
     dueDate: string,
@@ -66,9 +73,13 @@ export class TaskOccurrencesService {
         task_id: taskId,
         due_date: dueDate,
         due_time: dueTime ?? null,
-        user_id: responsibleId ?? null,
       }),
     );
+
+    if (responsibleId) {
+      await this.setResponsible(occurrence, responsibleId);
+    }
+
     await this.remindersService.scheduleForOccurrence(occurrence);
     return occurrence;
   }
@@ -103,7 +114,11 @@ export class TaskOccurrencesService {
     return qb.orderBy('o.due_date', 'ASC').addOrderBy('o.id', 'ASC').getMany();
   }
 
-  findBy(condition: FindOptionsWhere<TaskOccurrence> | FindOptionsWhere<TaskOccurrence>[]) {
+  findBy(
+    condition:
+      | FindOptionsWhere<TaskOccurrence>
+      | FindOptionsWhere<TaskOccurrence>[],
+  ) {
     return this.occurrenceRepository.find({
       where: condition,
     });
@@ -252,10 +267,54 @@ export class TaskOccurrencesService {
       .getMany();
   }
 
-  // Persiste al responsable elegido (o lo limpia con null).
+  // Persiste al responsable elegido (o lo limpia con null). Cuando el responsable
+  // cambia a un miembro concreto, notifica por push a ese miembro (best-effort).
   async setResponsible(occurrence: TaskOccurrence, userId: string | null) {
+    if (userId !== null && userId === occurrence.user_id) {
+      return occurrence; // mismo responsable: no-op
+    }
+
     occurrence.user_id = userId;
-    return this.occurrenceRepository.save(occurrence);
+    const saved = await this.occurrenceRepository.save(occurrence);
+
+    if (userId) {
+      await this.notifyAssigned(saved, userId);
+    }
+    return saved;
+  }
+
+  // Avisa por push al miembro asignado a la ocurrencia. Fire-and-forget: nunca
+  // rompe la operación de asignación. Carga el nombre de la tarea solo si la
+  // ocurrencia no llegó con la relación poblada.
+  private async notifyAssigned(
+    occurrence: TaskOccurrence,
+    userId: string,
+  ): Promise<void> {
+    try {
+      const taskName =
+        occurrence.task?.name ??
+        (await this.taskRepository.findOneBy({ id: occurrence.task_id }))?.name;
+      const due = formatInTimeZone(
+        fromZonedTime(`${occurrence.due_date}T08:00:00`, APP_TIMEZONE),
+        APP_TIMEZONE,
+        'd MMM',
+      );
+
+      await this.pushNotificationsService.sendToUser(userId, {
+        channelId: 'tasks',
+        title: '📋 Tarea asignada',
+        body: `Te asignaron: "${taskName ?? 'una tarea'}" · Vence ${due}`,
+        data: {
+          occurrence_id: occurrence.id,
+          task_id: occurrence.task?.id ?? occurrence.task_id,
+        },
+      });
+    } catch (err) {
+      this.logger.error(
+        `Fallo al notificar asignación de la ocurrencia ${occurrence.id}`,
+        err instanceof Error ? err.stack : String(err),
+      );
+    }
   }
 
   // ===== Helpers privados =====

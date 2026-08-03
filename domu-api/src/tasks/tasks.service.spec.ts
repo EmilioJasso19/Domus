@@ -1,4 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
+// expo-server-sdk es ESM-only; la cadena de dependencias lo carga al resolver.
+jest.mock('expo-server-sdk', () => ({ Expo: class {} }));
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException } from '@nestjs/common';
 import { validate } from 'class-validator';
@@ -59,7 +61,11 @@ describe('TasksService', () => {
   // C22 — Crear tarea con campos válidos
   describe('C22 - Crear tarea con campos válidos', () => {
     it('crea la plantilla y su primera ocurrencia cuando el usuario pertenece al hogar', async () => {
-      const createdTask = { id: 't1', name: validDto.name, home_id: validDto.home_id };
+      const createdTask = {
+        id: 't1',
+        name: validDto.name,
+        home_id: validDto.home_id,
+      };
       mockUhrService.exists.mockResolvedValue(true);
       mockTaskRepository.create.mockImplementation((data) => data);
       mockTaskRepository.save.mockResolvedValue(createdTask);

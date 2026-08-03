@@ -3,8 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, LessThanOrEqual, Not, Repository } from 'typeorm';
 import { subHours } from 'date-fns';
 import { fromZonedTime, formatInTimeZone } from 'date-fns-tz';
-import { Expo, ExpoPushMessage, ExpoPushTicket } from 'expo-server-sdk';
-import { DeviceTokensService } from '@/device-tokens/device-tokens.service';
+import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
 import { Reminder } from './entities/reminders.entity';
 import { TaskOccurrence } from '@/task-occurrences/entities/task-occurrence.entity';
 
@@ -13,14 +12,12 @@ const APP_TIMEZONE = process.env.APP_TIMEZONE || 'UTC';
 @Injectable()
 export class RemindersService {
   private readonly logger = new Logger(RemindersService.name);
-  // Instancia de campo (no const a nivel de módulo) para poder mockearla en tests.
-  private readonly expo = new Expo();
 
   constructor(
     @InjectRepository(Reminder)
     private readonly reminderRepository: Repository<Reminder>,
-    private readonly deviceTokensService: DeviceTokensService,
-  ) { }
+    private readonly pushNotificationsService: PushNotificationsService,
+  ) {}
 
   async findByOccurrence(occurrenceId: string): Promise<Reminder[]> {
     return this.reminderRepository.find({
@@ -46,7 +43,11 @@ export class RemindersService {
       : [at('12:00:00'), at('23:00:00')];
 
     await this.reminderRepository.save(
-      times.map((date_time) => ({ occurrence, date_time, reminder_sent: false })),
+      times.map((date_time) => ({
+        occurrence,
+        date_time,
+        reminder_sent: false,
+      })),
     );
   }
 
@@ -86,53 +87,23 @@ export class RemindersService {
   }
 
   private async sendForOccurrence(reminder: Reminder): Promise<void> {
-    const tokens = await this.deviceTokensService.findByUserId(
+    await this.pushNotificationsService.sendToUser(
       reminder.occurrence.user_id!,
+      {
+        channelId: 'reminders',
+        title: '📋 Tarea por vencer',
+        body: `"${reminder.occurrence.task.name}" — Vence ${this.formatDue(reminder)}`,
+        data: { occurrence_id: String(reminder.occurrence.id) },
+      },
     );
-    const valid = tokens.filter((t) => Expo.isExpoPushToken(t.expo_push_token));
-    if (valid.length === 0) return;
-
-    const messages: ExpoPushMessage[] = valid.map((t) => ({
-      to: t.expo_push_token,
-      sound: 'default',
-      priority: 'high', // Android: despierta el dispositivo y entrega de inmediato
-      channelId: 'reminders', // debe coincidir con el canal registrado en la app
-      title: '📋 Tarea por vencer',
-      body: `"${reminder.occurrence.task.name}" — Vence ${this.formatDue(reminder)}`,
-      data: { occurrence_id: String(reminder.occurrence.id) },
-    }));
-
-    const chunks = this.expo.chunkPushNotifications(messages);
-    for (const chunk of chunks) {
-      const tickets = await this.expo.sendPushNotificationsAsync(chunk);
-      await this.handleTickets(chunk, tickets);
-    }
-  }
-
-  // Limpia tokens que Expo reporta como ya no registrados en el dispositivo.
-  private async handleTickets(
-    chunk: ExpoPushMessage[],
-    tickets: ExpoPushTicket[],
-  ): Promise<void> {
-    for (let i = 0; i < tickets.length; i++) {
-      const ticket = tickets[i];
-      if (
-        ticket.status === 'error' &&
-        ticket.details?.error === 'DeviceNotRegistered'
-      ) {
-        const to = chunk[i]?.to;
-        const token = Array.isArray(to) ? to[0] : to;
-        if (token) await this.deviceTokensService.deleteByToken(token);
-      }
-    }
   }
 
   private formatDue(reminder: Reminder): string {
     const target = reminder.occurrence.due_time
       ? fromZonedTime(
-        `${reminder.occurrence.due_date}T${reminder.occurrence.due_time}`,
-        APP_TIMEZONE,
-      )
+          `${reminder.occurrence.due_date}T${reminder.occurrence.due_time}`,
+          APP_TIMEZONE,
+        )
       : fromZonedTime(`${reminder.occurrence.due_date}T08:00:00`, APP_TIMEZONE);
     return formatInTimeZone(
       target,

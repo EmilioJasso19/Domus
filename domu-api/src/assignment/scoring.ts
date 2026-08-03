@@ -1,4 +1,8 @@
-import { MemberSnapshot, AssignmentWeights, DEFAULT_WEIGHTS } from './assignment.types';
+import {
+  MemberSnapshot,
+  AssignmentWeights,
+  DEFAULT_WEIGHTS,
+} from './assignment.types';
 
 /**
  * Contexto de normalización: los máximos del conjunto de candidatos en evaluación.

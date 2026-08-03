@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { PreferencesService } from './preferences.service';
 import { CreatePreferenceDto } from './dto/create-preference.dto';
 import { UpdatePreferenceDto } from './dto/update-preference.dto';
@@ -10,7 +19,7 @@ import { SavePreferencesDto } from './dto/save-preference-dto';
 @UseGuards(JwtAuthGuard)
 @Controller('preferences')
 export class PreferencesController {
-  constructor(private readonly preferencesService: PreferencesService) { }
+  constructor(private readonly preferencesService: PreferencesService) {}
 
   @Post()
   save(@Body() createPreferenceDto: CreatePreferenceDto, @AuthUser() user) {
@@ -23,11 +32,7 @@ export class PreferencesController {
     @Param('homeId') homeId: string,
     @AuthUser() user: User,
   ) {
-    return this.preferencesService.saveMany(
-      dto,
-      homeId,
-      user,
-    );
+    return this.preferencesService.saveMany(dto, homeId, user);
   }
 
   @Get('home/:homeId')

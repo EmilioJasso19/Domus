@@ -198,8 +198,13 @@ describe('AuthService', () => {
 
       const result = await service.signIn(signInDto);
 
-      expect(mockUsersService.findByEmail).toHaveBeenCalledWith(signInDto.email);
-      expect(argon2.verify).toHaveBeenCalledWith(mockUser.password, signInDto.password);
+      expect(mockUsersService.findByEmail).toHaveBeenCalledWith(
+        signInDto.email,
+      );
+      expect(argon2.verify).toHaveBeenCalledWith(
+        mockUser.password,
+        signInDto.password,
+      );
       expect(result).toHaveProperty('access_token', 'mock_jwt_token');
       expect(result).toHaveProperty('user');
       expect(result.user).toMatchObject({

@@ -1,4 +1,4 @@
-import { Module, } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
@@ -19,6 +19,7 @@ import { VirtualPetModule } from './virtual-pet/virtual-pet.module';
 import { DeviceTokensModule } from './device-tokens/device-tokens.module';
 import { RemindersModule } from './reminders/reminders.module';
 import { DiscordModule } from './common/discord/discord.module';
+import { PushNotificationsModule } from './push-notifications/push-notifications.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { DiscordModule } from './common/discord/discord.module';
     VirtualPetModule,
     DeviceTokensModule,
     RemindersModule,
+    PushNotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

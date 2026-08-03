@@ -7,16 +7,21 @@ import { UserHomeRoleModule } from '@/user-home-role/user-home-role.module';
 import { AuthModule } from '@/auth/auth.module';
 import { RoleModule } from '@/role/role.module';
 import { VirtualPetModule } from '@/virtual-pet/virtual-pet.module';
+import { UsersModule } from '@/users/users.module';
+import { PushNotificationsModule } from '@/push-notifications/push-notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Home]), 
+  imports: [
+    TypeOrmModule.forFeature([Home]),
     RoleModule,
-    UserHomeRoleModule, 
+    UserHomeRoleModule,
     AuthModule,
-    VirtualPetModule
+    VirtualPetModule,
+    UsersModule,
+    PushNotificationsModule,
   ],
   controllers: [HomeController],
   providers: [HomeService],
   exports: [HomeService],
 })
-export class HomeModule { }
+export class HomeModule {}

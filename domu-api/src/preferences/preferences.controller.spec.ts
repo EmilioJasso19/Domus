@@ -1,4 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
+// expo-server-sdk es ESM-only; la cadena de dependencias lo carga al resolver.
+jest.mock('expo-server-sdk', () => ({ Expo: class {} }));
 import { ForbiddenException } from '@nestjs/common';
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
@@ -41,7 +43,11 @@ describe('PreferencesController', () => {
 
       await controller.saveMany(dto, '100', mockUser);
 
-      expect(mockPreferencesService.saveMany).toHaveBeenCalledWith(dto, '100', mockUser);
+      expect(mockPreferencesService.saveMany).toHaveBeenCalledWith(
+        dto,
+        '100',
+        mockUser,
+      );
     });
 
     // CP-56 (controller): propaga ForbiddenException
@@ -65,7 +71,10 @@ describe('PreferencesController', () => {
 
       await controller.findAll(mockUser, '100');
 
-      expect(mockPreferencesService.findAllByUserAndHome).toHaveBeenCalledWith('1', '100');
+      expect(mockPreferencesService.findAllByUserAndHome).toHaveBeenCalledWith(
+        '1',
+        '100',
+      );
     });
   });
 

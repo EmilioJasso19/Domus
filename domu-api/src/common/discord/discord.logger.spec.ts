@@ -15,7 +15,11 @@ describe('DiscordLogger', () => {
   afterEach(() => jest.restoreAllMocks());
 
   it('forwards an error log to Discord, parsing stack and context', () => {
-    logger.error('Failed sending reminder', 'Error: x\n  at y', 'RemindersService');
+    logger.error(
+      'Failed sending reminder',
+      'Error: x\n  at y',
+      'RemindersService',
+    );
 
     expect(discord.sendError).toHaveBeenCalledTimes(1);
     expect(discord.sendError).toHaveBeenCalledWith({

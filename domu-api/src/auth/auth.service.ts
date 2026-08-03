@@ -11,12 +11,12 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
-    private readonly userHomeRoleService: UserHomeRoleService
+    private readonly userHomeRoleService: UserHomeRoleService,
   ) {}
 
   async signIn(signInDto: SignInDto) {
     const user = await this.usersService.findByEmail(signInDto.email);
-    
+
     if (!user || !(await argon2.verify(user.password, signInDto.password))) {
       throw new UnauthorizedException('Credenciales inválidas');
     }
@@ -25,32 +25,36 @@ export class AuthService {
 
     const payload = { sub: user.id, email: user.email };
     return {
-      access_token: this.jwtService.sign(payload, { secret: process.env.JWT_SECRET! }),
-      user: { 
-        id: user.id, 
+      access_token: this.jwtService.sign(payload, {
+        secret: process.env.JWT_SECRET!,
+      }),
+      user: {
+        id: user.id,
         email: user.email,
         name: user.name,
       },
-      households: households.map(h => ({
+      households: households.map((h) => ({
         id: h.home.id,
         name: h.home.name,
         points: h.home.points,
         invitation_code: h.home.invitation_code,
-      }))
+      })),
     };
   }
 
   async signUp(signUpDto: SignUpDto) {
     const user = await this.usersService.create(signUpDto);
-    
+
     const { password, ...userWithoutPassword } = user;
-    
+
     const payload = { sub: user.id, email: user.email };
-    const access_token = this.jwtService.sign(payload, { secret: process.env.JWT_SECRET! });
-    
+    const access_token = this.jwtService.sign(payload, {
+      secret: process.env.JWT_SECRET!,
+    });
+
     return {
       access_token,
-      user: userWithoutPassword
+      user: userWithoutPassword,
     };
   }
 }

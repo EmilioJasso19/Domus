@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
@@ -11,7 +15,7 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-  ) { }
+  ) {}
 
   async create(createUserDto: CreateUserDto) {
     const exists = await this.findByEmail(createUserDto.email);
@@ -20,7 +24,10 @@ export class UsersService {
     }
 
     const hash = await argon2.hash(createUserDto.password);
-    const user = this.usersRepository.create({ ...createUserDto, password: hash });
+    const user = this.usersRepository.create({
+      ...createUserDto,
+      password: hash,
+    });
     return this.usersRepository.save(user);
   }
 
@@ -52,7 +59,14 @@ export class UsersService {
   async findByEmail(email: string) {
     const user = await this.usersRepository.findOne({
       where: { email },
-      select: ['id', 'email', 'password', 'name', 'paternal_surname', 'maternal_surname'] // it's necessary to select the password explicitly since entity has select: false
+      select: [
+        'id',
+        'email',
+        'password',
+        'name',
+        'paternal_surname',
+        'maternal_surname',
+      ], // it's necessary to select the password explicitly since entity has select: false
     });
     // NOTE: this method should return null if not found, which is what we want for signIn
     return user;

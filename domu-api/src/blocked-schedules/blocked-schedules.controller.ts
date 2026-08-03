@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Query,
+} from '@nestjs/common';
 import { BlockedSchedulesService } from './blocked-schedules.service';
 import { CreateBlockedScheduleDto } from './dto/create-blocked-schedule.dto';
 import { UpdateBlockedScheduleDto } from './dto/update-blocked-schedule.dto';
@@ -8,10 +18,13 @@ import { AuthUser } from '@/auth/decorators/auth-user.decorators';
 @UseGuards(JwtAuthGuard)
 @Controller('availability')
 export class BlockedSchedulesController {
-  constructor(private readonly schedulesService: BlockedSchedulesService) { }
+  constructor(private readonly schedulesService: BlockedSchedulesService) {}
 
   @Post()
-  create(@Body() createBlockedScheduleDto: CreateBlockedScheduleDto, @AuthUser() user) {
+  create(
+    @Body() createBlockedScheduleDto: CreateBlockedScheduleDto,
+    @AuthUser() user,
+  ) {
     return this.schedulesService.create(createBlockedScheduleDto, user);
   }
 
@@ -26,7 +39,11 @@ export class BlockedSchedulesController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateBlockedScheduleDto: UpdateBlockedScheduleDto, @AuthUser() user) {
+  update(
+    @Param('id') id: string,
+    @Body() updateBlockedScheduleDto: UpdateBlockedScheduleDto,
+    @AuthUser() user,
+  ) {
     return this.schedulesService.update(id, updateBlockedScheduleDto, user);
   }
 

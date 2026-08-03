@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { CreatePreferenceDto } from './dto/create-preference.dto';
 import { User } from '@/users/entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -13,10 +18,11 @@ import { In } from 'typeorm';
 @Injectable()
 export class PreferencesService {
   constructor(
-    @InjectRepository(Preference) private preferenceRepository: Repository<Preference>,
+    @InjectRepository(Preference)
+    private preferenceRepository: Repository<Preference>,
     private readonly tasksService: TasksService,
     private readonly uhrService: UserHomeRoleService,
-  ) { }
+  ) {}
   async save(createPreferenceDto: CreatePreferenceDto, user: User) {
     if (!user) {
       throw new NotFoundException('User not found');
@@ -29,24 +35,36 @@ export class PreferencesService {
       throw new NotFoundException('Task not found');
     }
 
-    const uhr = await this.uhrService.exists({ user_id: user.id, home_id: task.home_id });
+    const uhr = await this.uhrService.exists({
+      user_id: user.id,
+      home_id: task.home_id,
+    });
     if (!uhr) {
       throw new ForbiddenException('No perteneces a este hogar');
     }
 
-    const preference = await this.preferenceRepository.findOneBy({ user_id: user.id, task_id });
+    const preference = await this.preferenceRepository.findOneBy({
+      user_id: user.id,
+      task_id,
+    });
 
     if (preference) {
       preference.score = score;
       return this.preferenceRepository.save(preference);
     } else {
-      const newPreference = this.preferenceRepository.create({ user_id: user.id, task_id, score });
+      const newPreference = this.preferenceRepository.create({
+        user_id: user.id,
+        task_id,
+        score,
+      });
       return this.preferenceRepository.save(newPreference);
     }
   }
 
   async remove(id: string, user: User) {
-    const preference = await this.preferenceRepository.findOneBy({ user_id: user.id });
+    const preference = await this.preferenceRepository.findOneBy({
+      user_id: user.id,
+    });
     if (!preference) {
       throw new NotFoundException('Preference not found');
     }
@@ -65,25 +83,22 @@ export class PreferencesService {
   }
 
   async saveMany(dto: SavePreferencesDto, homeId: string, user: User) {
-    const belongsToHome =
-      await this.uhrService.exists({ user_id: user.id, home_id: homeId });
+    const belongsToHome = await this.uhrService.exists({
+      user_id: user.id,
+      home_id: homeId,
+    });
 
     if (!belongsToHome) {
       throw new ForbiddenException('No perteneces a este hogar');
     }
 
-    const preferences = dto.preferences.map(
-      (pref) => ({
-        user_id: user.id,
-        task_id: pref.task_id,
-        score: pref.score,
-      }),
-    );
+    const preferences = dto.preferences.map((pref) => ({
+      user_id: user.id,
+      task_id: pref.task_id,
+      score: pref.score,
+    }));
 
-    await this.preferenceRepository.upsert(
-      preferences,
-      ['user_id', 'task_id'],
-    );
+    await this.preferenceRepository.upsert(preferences, ['user_id', 'task_id']);
 
     return this.preferenceRepository.find({
       where: {
@@ -137,7 +152,9 @@ export class PreferencesService {
   }
 
   async findOneByUserAndTask(userId: string, taskId: string) {
-    return this.preferenceRepository.findOneBy({ user_id: userId, task_id: taskId });
+    return this.preferenceRepository.findOneBy({
+      user_id: userId,
+      task_id: taskId,
+    });
   }
-
 }

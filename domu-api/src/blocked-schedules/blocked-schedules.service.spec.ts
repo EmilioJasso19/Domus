@@ -42,7 +42,9 @@ const validDto: CreateBlockedScheduleDto = {
   end_date: '2026-06-30',
 };
 
-const buildSchedule = (overrides: Partial<BlockedSchedule> = {}): BlockedSchedule =>
+const buildSchedule = (
+  overrides: Partial<BlockedSchedule> = {},
+): BlockedSchedule =>
   ({
     id: '100',
     user_id: '1',
@@ -82,7 +84,7 @@ describe('BlockedSchedulesService', () => {
   describe('create', () => {
     // C28: Bloqueo con datos válidos -> 201
     it('C28: crea el horario con datos válidos y lo persiste', async () => {
-      uhr.exists!.mockResolvedValue(true); // pertenece al hogar
+      uhr.exists.mockResolvedValue(true); // pertenece al hogar
       repo.findOne!.mockResolvedValue(null); // no hay duplicado
       const created = buildSchedule();
       repo.create!.mockReturnValue(created);
@@ -96,10 +98,13 @@ describe('BlockedSchedulesService', () => {
 
     // C29: hora inicio >= hora fin -> 400
     it('C29: lanza BadRequest si start_time es mayor o igual a end_time', async () => {
-      uhr.exists!.mockResolvedValue(true);
+      uhr.exists.mockResolvedValue(true);
 
       await expect(
-        service.create({ ...validDto, start_time: '18:00', end_time: '09:00' }, authUser),
+        service.create(
+          { ...validDto, start_time: '18:00', end_time: '09:00' },
+          authUser,
+        ),
       ).rejects.toThrow(BadRequestException);
 
       expect(repo.save).not.toHaveBeenCalled();
@@ -107,15 +112,17 @@ describe('BlockedSchedulesService', () => {
 
     // C31: usuario que no pertenece al hogar -> 403
     it('C31: lanza Forbidden si el usuario no pertenece a la casa', async () => {
-      uhr.exists!.mockResolvedValue(false);
+      uhr.exists.mockResolvedValue(false);
 
-      await expect(service.create(validDto, authUser)).rejects.toThrow(ForbiddenException);
+      await expect(service.create(validDto, authUser)).rejects.toThrow(
+        ForbiddenException,
+      );
       expect(repo.save).not.toHaveBeenCalled();
     });
 
     // C32: no se puede bloquear el horario de otro miembro -> 403
     it('C32: rechaza con Forbidden si el user_id del body no es el del usuario autenticado', async () => {
-      uhr.exists!.mockResolvedValue(true);
+      uhr.exists.mockResolvedValue(true);
       repo.findOne!.mockResolvedValue(null);
 
       await expect(
@@ -127,7 +134,7 @@ describe('BlockedSchedulesService', () => {
 
     // C32b: enviar el propio user_id es válido (coincide con el autenticado).
     it('C32b: acepta el propio user_id y persiste el horario', async () => {
-      uhr.exists!.mockResolvedValue(true);
+      uhr.exists.mockResolvedValue(true);
       repo.findOne!.mockResolvedValue(null);
       const created = buildSchedule();
       repo.create!.mockReturnValue(created);
@@ -145,24 +152,32 @@ describe('BlockedSchedulesService', () => {
 
     // C33: bloqueo duplicado -> 409
     it('C33: lanza Conflict si ya existe bloqueo con mismo usuario/hogar/día/hora', async () => {
-      uhr.exists!.mockResolvedValue(true);
+      uhr.exists.mockResolvedValue(true);
       repo.findOne!.mockResolvedValue(buildSchedule()); // ya existe uno idéntico
 
-      await expect(service.create(validDto, authUser)).rejects.toThrow(ConflictException);
+      await expect(service.create(validDto, authUser)).rejects.toThrow(
+        ConflictException,
+      );
       expect(repo.save).not.toHaveBeenCalled();
     });
 
     // C34: bloqueo indefinido (sin fechas de vigencia) -> 201
     it('C34: crea un bloqueo indefinido cuando no se envían fechas', async () => {
       // start_date y end_date deben ser @IsOptional() en el DTO.
-      uhr.exists!.mockResolvedValue(true);
+      uhr.exists.mockResolvedValue(true);
       repo.findOne!.mockResolvedValue(null);
-      const indefinite = buildSchedule({ start_date: undefined, end_date: undefined });
+      const indefinite = buildSchedule({
+        start_date: undefined,
+        end_date: undefined,
+      });
       repo.create!.mockReturnValue(indefinite);
       repo.save!.mockResolvedValue(indefinite);
 
       const { start_date, end_date, ...noDates } = validDto;
-      const result = await service.create(noDates as CreateBlockedScheduleDto, authUser);
+      const result = await service.create(
+        noDates as CreateBlockedScheduleDto,
+        authUser,
+      );
 
       expect(result.start_date).toBeUndefined();
       expect(result.end_date).toBeUndefined();
@@ -171,7 +186,7 @@ describe('BlockedSchedulesService', () => {
 
     // Extra (criterio 5 de la HU #16): fecha inicio > fecha fin -> 400
     it('Extra: lanza BadRequest si start_date es posterior a end_date', async () => {
-      uhr.exists!.mockResolvedValue(true);
+      uhr.exists.mockResolvedValue(true);
 
       await expect(
         service.create(
@@ -193,7 +208,9 @@ describe('BlockedSchedulesService', () => {
     // Base de C36 (requiere que findOne lance NotFound)
     it('lanza NotFound cuando el horario no existe o no es del usuario', async () => {
       repo.findOne!.mockResolvedValue(null);
-      await expect(service.findOne('404', authUser)).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('404', authUser)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -205,7 +222,11 @@ describe('BlockedSchedulesService', () => {
       repo.findOne!.mockResolvedValue(own);
       repo.save!.mockResolvedValue({ ...own, start_time: '10:00' });
 
-      const result = await service.update('100', { start_time: '10:00' }, authUser);
+      const result = await service.update(
+        '100',
+        { start_time: '10:00' },
+        authUser,
+      );
 
       expect(result.start_time).toBe('10:00');
       expect(repo.save).toHaveBeenCalledTimes(1);
@@ -214,17 +235,17 @@ describe('BlockedSchedulesService', () => {
     // C36: edición de horario inexistente -> 404
     it('C36: lanza NotFound al editar un horario inexistente', async () => {
       repo.findOne!.mockResolvedValue(null);
-      await expect(service.update('404', { start_time: '10:00' }, authUser)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.update('404', { start_time: '10:00' }, authUser),
+      ).rejects.toThrow(NotFoundException);
     });
 
     // C38: edición de horario ajeno -> 403
     it('C38: lanza Forbidden al editar un horario de otro miembro', async () => {
       repo.findOne!.mockResolvedValue(buildSchedule({ user_id: '99' }));
-      await expect(service.update('100', { start_time: '10:00' }, authUser)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.update('100', { start_time: '10:00' }, authUser),
+      ).rejects.toThrow(ForbiddenException);
       expect(repo.save).not.toHaveBeenCalled();
     });
 
@@ -232,7 +253,11 @@ describe('BlockedSchedulesService', () => {
     it('Extra: lanza BadRequest al editar con start_time mayor a end_time', async () => {
       repo.findOne!.mockResolvedValue(buildSchedule({ user_id: authUser.id }));
       await expect(
-        service.update('100', { start_time: '20:00', end_time: '08:00' }, authUser),
+        service.update(
+          '100',
+          { start_time: '20:00', end_time: '08:00' },
+          authUser,
+        ),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -252,13 +277,17 @@ describe('BlockedSchedulesService', () => {
     // C36: eliminación de horario inexistente -> 404
     it('C36: lanza NotFound al eliminar un horario inexistente', async () => {
       repo.findOne!.mockResolvedValue(null);
-      await expect(service.remove('404', authUser)).rejects.toThrow(NotFoundException);
+      await expect(service.remove('404', authUser)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     // C38: eliminación de horario ajeno -> 403
     it('C38: lanza Forbidden al eliminar un horario de otro miembro', async () => {
       repo.findOne!.mockResolvedValue(buildSchedule({ user_id: '99' }));
-      await expect(service.remove('100', authUser)).rejects.toThrow(ForbiddenException);
+      await expect(service.remove('100', authUser)).rejects.toThrow(
+        ForbiddenException,
+      );
       expect(repo.remove).not.toHaveBeenCalled();
     });
   });

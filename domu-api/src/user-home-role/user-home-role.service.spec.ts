@@ -38,7 +38,10 @@ describe('UserHomeRoleService', () => {
         { provide: getRepositoryToken(Home), useValue: mockHomeRepository },
         { provide: getRepositoryToken(User), useValue: mockUserRepository },
         { provide: getRepositoryToken(Role), useValue: mockRoleRepository },
-        { provide: getRepositoryToken(UserHomeRole), useValue: mockUserHomeRoleRepository },
+        {
+          provide: getRepositoryToken(UserHomeRole),
+          useValue: mockUserHomeRoleRepository,
+        },
       ],
     }).compile();
 
@@ -54,7 +57,11 @@ describe('UserHomeRoleService', () => {
   // relación role); la membresía objetivo se busca con findOneBy.
   describe('C12 - Asignación de rol Dueño por un Dueño', () => {
     it('debe actualizar el rol del miembro a OWNER cuando lo solicita un OWNER', async () => {
-      const targetUhr: any = { user_id: memberUser.id, home_id: mockHome.id, role: memberRole };
+      const targetUhr: any = {
+        user_id: memberUser.id,
+        home_id: mockHome.id,
+        role: memberRole,
+      };
 
       mockHomeRepository.findOneBy.mockResolvedValue(mockHome);
       mockUserHomeRoleRepository.findOneBy.mockResolvedValue(targetUhr); // UHR a actualizar
@@ -81,7 +88,11 @@ describe('UserHomeRoleService', () => {
 
   describe('C13 - Intento de asignación de rol por un Miembro', () => {
     it('debe lanzar ForbiddenException (403) cuando un MEMBER intenta asignar roles', async () => {
-      const targetUhr: any = { user_id: memberUser.id, home_id: mockHome.id, role: memberRole };
+      const targetUhr: any = {
+        user_id: memberUser.id,
+        home_id: mockHome.id,
+        role: memberRole,
+      };
 
       mockHomeRepository.findOneBy.mockResolvedValue(mockHome);
       mockUserHomeRoleRepository.findOneBy.mockResolvedValue(targetUhr);
@@ -90,7 +101,12 @@ describe('UserHomeRoleService', () => {
       mockUserHomeRoleRepository.findOne.mockResolvedValue(null);
 
       await expect(
-        service.updateRole(memberUser, memberUser.id, mockHome.id, ownerRole.id),
+        service.updateRole(
+          memberUser,
+          memberUser.id,
+          mockHome.id,
+          ownerRole.id,
+        ),
       ).rejects.toThrow(ForbiddenException);
 
       expect(mockUserHomeRoleRepository.save).not.toHaveBeenCalled();

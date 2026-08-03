@@ -3,25 +3,12 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { RemindersService } from './reminders.service';
 import { Reminder } from './entities/reminders.entity';
 import { TaskOccurrence } from '@/task-occurrences/entities/task-occurrence.entity';
-import { DeviceTokensService } from '@/device-tokens/device-tokens.service';
+import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
 
-// expo-server-sdk v6 is ESM-only; mock it so Jest's runtime doesn't try to load
-// it (and so we can assert on the network send). chunkPushNotifications keeps a
-// simple single-chunk behavior; sendPushNotificationsAsync is overridden per-test.
-jest.mock('expo-server-sdk', () => {
-  class Expo {
-    static isExpoPushToken(token: unknown): boolean {
-      return typeof token === 'string' && token.startsWith('ExponentPushToken[');
-    }
-    chunkPushNotifications(messages: unknown[]): unknown[][] {
-      return [messages];
-    }
-    sendPushNotificationsAsync = jest.fn();
-  }
-  return { Expo };
-});
+// expo-server-sdk es ESM-only; se mockea porque RemindersService carga
+// (transitivamente) PushNotificationsService, que lo importa al resolver el módulo.
+jest.mock('expo-server-sdk', () => ({ Expo: class {} }));
 
-const VALID_TOKEN = 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]';
 const PAST_DATE = '2020-01-01';
 
 // Un recordatorio ya vencido, cuya ocurrencia sigue vigente. El filtrado por
@@ -56,8 +43,7 @@ describe('RemindersService', () => {
     save: jest.fn(),
     createQueryBuilder: jest.fn(() => qb),
   };
-  const deviceTokens = { findByUserId: jest.fn(), deleteByToken: jest.fn() };
-  let sendPush: jest.Mock;
+  const push = { sendToUser: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -68,15 +54,11 @@ describe('RemindersService', () => {
       providers: [
         RemindersService,
         { provide: getRepositoryToken(Reminder), useValue: repo },
-        { provide: DeviceTokensService, useValue: deviceTokens },
+        { provide: PushNotificationsService, useValue: push },
       ],
     }).compile();
 
     service = module.get<RemindersService>(RemindersService);
-
-    // Stub del envío de red de Expo (chunkPushNotifications se deja real).
-    sendPush = jest.fn().mockResolvedValue([{ status: 'ok', id: 'ticket-1' }]);
-    (service as any).expo.sendPushNotificationsAsync = sendPush;
   });
 
   it('should be defined', () => {
@@ -93,63 +75,41 @@ describe('RemindersService', () => {
     expect(arg.where.date_time).toBeDefined(); // LessThanOrEqual(now)
     expect(arg.where.occurrence.user_id).toBeDefined(); // Not(IsNull())
     expect(arg.where.occurrence.completed_at).toBeDefined(); // IsNull()
-    expect(arg.where.occurrence.task).toEqual({ deleted_at: expect.anything() });
+    expect(arg.where.occurrence.task).toEqual({
+      deleted_at: expect.anything(),
+    });
     expect(arg.relations).toEqual({ occurrence: { task: true } });
     expect(arg.order).toEqual({ date_time: 'ASC' });
     expect(arg.take).toBe(100);
   });
 
-  it('sends a high-priority push and marks the reminder sent when the user has tokens', async () => {
+  it('envía una notificación push del canal reminders y marca el recordatorio como enviado', async () => {
     const reminder = makeReminder();
     repo.find.mockResolvedValue([reminder]);
-    deviceTokens.findByUserId.mockResolvedValue([
-      { expo_push_token: VALID_TOKEN },
-    ]);
+    push.sendToUser.mockResolvedValue(undefined);
 
     await service.dispatchDueReminders();
 
-    expect(deviceTokens.findByUserId).toHaveBeenCalledWith('7');
-    expect(sendPush).toHaveBeenCalledTimes(1);
-    const sentMessages = sendPush.mock.calls[0][0];
-    expect(sentMessages[0]).toMatchObject({
-      to: VALID_TOKEN,
-      priority: 'high',
+    expect(push.sendToUser).toHaveBeenCalledTimes(1);
+    expect(push.sendToUser).toHaveBeenCalledWith('7', {
       channelId: 'reminders',
+      title: '📋 Tarea por vencer',
+      body: `"Limpiar cocina" — Vence 1 Jan`,
       data: { occurrence_id: '1' }, // occurrence id, not reminder id
     });
     expect(reminder.reminder_sent).toBe(true);
     expect(repo.save).toHaveBeenCalledWith(reminder);
   });
 
-  it('marks the reminder sent without sending when the user has no tokens', async () => {
+  it('marca el recordatorio como enviado aunque el usuario no tenga tokens (best-effort)', async () => {
     const reminder = makeReminder();
     repo.find.mockResolvedValue([reminder]);
-    deviceTokens.findByUserId.mockResolvedValue([]);
 
     await service.dispatchDueReminders();
 
-    expect(sendPush).not.toHaveBeenCalled();
-    expect(reminder.reminder_sent).toBe(true);
-    expect(repo.save).toHaveBeenCalledWith(reminder);
-  });
-
-  it('deletes a stale token on DeviceNotRegistered and still marks the reminder sent', async () => {
-    const reminder = makeReminder();
-    repo.find.mockResolvedValue([reminder]);
-    deviceTokens.findByUserId.mockResolvedValue([
-      { expo_push_token: VALID_TOKEN },
-    ]);
-    sendPush.mockResolvedValue([
-      {
-        status: 'error',
-        message: 'not registered',
-        details: { error: 'DeviceNotRegistered' },
-      },
-    ]);
-
-    await service.dispatchDueReminders();
-
-    expect(deviceTokens.deleteByToken).toHaveBeenCalledWith(VALID_TOKEN);
+    // El filtrado de tokens vive en PushNotificationsService; aquí siempre se
+    // delega el envío y se marque al final, pase lo que pase.
+    expect(push.sendToUser).toHaveBeenCalledWith('7', expect.any(Object));
     expect(reminder.reminder_sent).toBe(true);
     expect(repo.save).toHaveBeenCalledWith(reminder);
   });
@@ -171,12 +131,8 @@ describe('RemindersService', () => {
       const saved = repo.save.mock.calls[0][0] as Reminder[];
       expect(saved).toHaveLength(2);
       // APP_TIMEZONE por defecto es UTC en tests
-      expect((saved[0].date_time as Date).toISOString()).toBe(
-        '2020-01-01T09:00:00.000Z',
-      );
-      expect((saved[1].date_time as Date).toISOString()).toBe(
-        '2020-01-01T10:00:00.000Z',
-      );
+      expect(saved[0].date_time.toISOString()).toBe('2020-01-01T09:00:00.000Z');
+      expect(saved[1].date_time.toISOString()).toBe('2020-01-01T10:00:00.000Z');
       expect(saved.every((r) => r.reminder_sent === false)).toBe(true);
     });
 
@@ -191,12 +147,8 @@ describe('RemindersService', () => {
 
       const saved = repo.save.mock.calls[0][0] as Reminder[];
       expect(saved).toHaveLength(2);
-      expect((saved[0].date_time as Date).toISOString()).toBe(
-        '2020-01-01T12:00:00.000Z',
-      );
-      expect((saved[1].date_time as Date).toISOString()).toBe(
-        '2020-01-01T23:00:00.000Z',
-      );
+      expect(saved[0].date_time.toISOString()).toBe('2020-01-01T12:00:00.000Z');
+      expect(saved[1].date_time.toISOString()).toBe('2020-01-01T23:00:00.000Z');
     });
   });
 });

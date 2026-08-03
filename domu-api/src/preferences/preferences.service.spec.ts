@@ -1,4 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
+// expo-server-sdk es ESM-only; la cadena de dependencias lo carga al resolver.
+jest.mock('expo-server-sdk', () => ({ Expo: class {} }));
 import { ForbiddenException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { PreferencesService } from './preferences.service';
@@ -40,7 +42,10 @@ describe('PreferencesService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PreferencesService,
-        { provide: getRepositoryToken(Preference), useValue: mockPreferenceRepository },
+        {
+          provide: getRepositoryToken(Preference),
+          useValue: mockPreferenceRepository,
+        },
         { provide: TasksService, useValue: mockTasksService },
         { provide: UserHomeRoleService, useValue: mockUhrService },
       ],
@@ -131,8 +136,18 @@ describe('PreferencesService', () => {
       const result = await service.findAllByUserAndHome('1', '100');
 
       expect(result).toEqual([
-        { user_id: '1', task_id: '10', score: 1, task: { id: '10', name: 'Barrer sala' } },
-        { user_id: '1', task_id: '11', score: 0, task: { id: '11', name: 'Lavar platos' } },
+        {
+          user_id: '1',
+          task_id: '10',
+          score: 1,
+          task: { id: '10', name: 'Barrer sala' },
+        },
+        {
+          user_id: '1',
+          task_id: '11',
+          score: 0,
+          task: { id: '11', name: 'Lavar platos' },
+        },
       ]);
       // Un GET no debe escribir: ni upsert ni remove
       expect(mockPreferenceRepository.upsert).not.toHaveBeenCalled();

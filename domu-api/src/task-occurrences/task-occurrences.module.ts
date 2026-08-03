@@ -8,6 +8,7 @@ import { UserHomeRoleModule } from '@/user-home-role/user-home-role.module';
 import { HomeModule } from '@/home/home.module';
 import { Task } from '@/tasks/entities/task.entity';
 import { RemindersModule } from '@/reminders/reminders.module';
+import { PushNotificationsModule } from '@/push-notifications/push-notifications.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { RemindersModule } from '@/reminders/reminders.module';
     UserHomeRoleModule,
     HomeModule,
     RemindersModule,
+    PushNotificationsModule,
   ],
   providers: [TaskOccurrencesService],
   controllers: [TaskOccurrencesController],

@@ -1,12 +1,12 @@
-import { IsInt, IsNumber, IsString, Max, Min } from "class-validator";
+import { IsInt, IsNumber, IsString, Max, Min } from 'class-validator';
 
 export class CreatePreferenceDto {
-    @IsString()
-    task_id!: string;
+  @IsString()
+  task_id!: string;
 
-    @IsNumber()
-    @IsInt()
-    @Min(-1)
-    @Max(1)
-    score!: number;
+  @IsNumber()
+  @IsInt()
+  @Min(-1)
+  @Max(1)
+  score!: number;
 }

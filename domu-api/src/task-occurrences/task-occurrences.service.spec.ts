@@ -8,9 +8,10 @@ import { Home } from '@/home/entities/home.entity';
 import { UserHomeRoleService } from '@/user-home-role/user-home-role.service';
 import { HomeService } from '@/home/home.service';
 import { RemindersService } from '@/reminders/reminders.service';
+import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
 
 // expo-server-sdk es ESM-only; se mockea porque TaskOccurrencesService importa
-// (transitivamente) RemindersService, que lo carga al resolver el módulo.
+// (transitivamente) PushNotificationsService, que lo carga al resolver el módulo.
 jest.mock('expo-server-sdk', () => ({ Expo: class {} }));
 
 const buildOccurrence = (over: any = {}) => ({
@@ -34,6 +35,10 @@ const mockRemindersService: any = {
   scheduleForOccurrence: jest.fn(),
   findByOccurrence: jest.fn(),
 };
+const mockPushService: any = {
+  sendToUser: jest.fn(),
+  sendToUsers: jest.fn(),
+};
 
 describe('TaskOccurrencesService', () => {
   let service: TaskOccurrencesService;
@@ -42,12 +47,16 @@ describe('TaskOccurrencesService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TaskOccurrencesService,
-        { provide: getRepositoryToken(TaskOccurrence), useValue: mockOccurrenceRepository },
+        {
+          provide: getRepositoryToken(TaskOccurrence),
+          useValue: mockOccurrenceRepository,
+        },
         { provide: getRepositoryToken(Task), useValue: mockTaskRepository },
         { provide: getRepositoryToken(Home), useValue: mockHomeRepository },
         { provide: UserHomeRoleService, useValue: mockUhrService },
         { provide: HomeService, useValue: mockHomeService },
         { provide: RemindersService, useValue: mockRemindersService },
+        { provide: PushNotificationsService, useValue: mockPushService },
       ],
     }).compile();
 
@@ -133,6 +142,59 @@ describe('TaskOccurrencesService', () => {
       const clauses = qb.andWhere.mock.calls.map((c: any[]) => c[0]);
       expect(clauses).toContain('o.completed_at IS NULL');
       expect(clauses).toContain('task.deleted_at IS NULL');
+    });
+  });
+
+  // Notificación de "tarea asignada" vía setResponsible (manual y automática).
+  describe('setResponsible - notificación de asignación', () => {
+    const assignedOcc = (over: any = {}) =>
+      buildOccurrence({
+        user_id: null,
+        task: {
+          id: 't1',
+          home_id: 'h1',
+          name: 'Lavar platos',
+          physical_effort: 2,
+        },
+        due_date: '2020-01-01',
+        ...over,
+      });
+
+    it('persiste al responsable y notifica al nuevo asignado', async () => {
+      const occ = assignedOcc();
+      mockOccurrenceRepository.save.mockImplementation(async (o: any) => o);
+      mockPushService.sendToUser.mockResolvedValue(undefined);
+
+      await service.setResponsible(occ, 'u1');
+
+      expect(mockOccurrenceRepository.save).toHaveBeenCalled();
+      expect(mockPushService.sendToUser).toHaveBeenCalledTimes(1);
+      expect(mockPushService.sendToUser).toHaveBeenCalledWith('u1', {
+        channelId: 'tasks',
+        title: '📋 Tarea asignada',
+        body: 'Te asignaron: "Lavar platos" · Vence 1 Jan',
+        data: { occurrence_id: 'o1', task_id: 't1' },
+      });
+    });
+
+    it('no re-notifica si el responsable no cambia', async () => {
+      const occ = assignedOcc({ user_id: 'u1' });
+      mockOccurrenceRepository.save.mockImplementation(async (o: any) => o);
+
+      await service.setResponsible(occ, 'u1');
+
+      expect(mockOccurrenceRepository.save).not.toHaveBeenCalled();
+      expect(mockPushService.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it('no notifica cuando se desasigna (userId null)', async () => {
+      const occ = assignedOcc({ user_id: 'u1' });
+      mockOccurrenceRepository.save.mockImplementation(async (o: any) => o);
+
+      await service.setResponsible(occ, null);
+
+      expect(mockOccurrenceRepository.save).toHaveBeenCalled();
+      expect(mockPushService.sendToUser).not.toHaveBeenCalled();
     });
   });
 });

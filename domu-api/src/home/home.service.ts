@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateHomeDto } from './dto/create-home.dto';
@@ -18,6 +19,8 @@ import { startOfWeek } from 'date-fns';
 import { UserHomeRoleService } from '@/user-home-role/user-home-role.service';
 import { RoleService } from '@/role/role.service';
 import { RoleName } from '@/role/constants/roles.constants';
+import { UsersService } from '@/users/users.service';
+import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
 import { DataSource } from 'typeorm';
 import { UserHomeRole } from '@/user-home-role/entities/user-home-role.entity';
 import { Task } from '@/tasks/entities/task.entity';
@@ -26,18 +29,25 @@ import { TaskOccurrence } from '@/task-occurrences/entities/task-occurrence.enti
 
 @Injectable()
 export class HomeService {
+  private readonly logger = new Logger(HomeService.name);
+
   constructor(
     private dataSource: DataSource,
     @InjectRepository(Home) private homeRepository: Repository<Home>,
     private readonly roleService: RoleService,
     private readonly userHomeRoleService: UserHomeRoleService,
-  ) { }
+    private readonly usersService: UsersService,
+    private readonly pushNotificationsService: PushNotificationsService,
+  ) {}
 
   async create(createHomeDto: CreateHomeDto, user: User) {
     if (!user) throw new NotFoundException('User not found');
 
-    const ownerRole = await this.roleService.findOneBy({ name: RoleName.OWNER });
-    if (!ownerRole) throw new InternalServerErrorException('Role configuration missing');
+    const ownerRole = await this.roleService.findOneBy({
+      name: RoleName.OWNER,
+    });
+    if (!ownerRole)
+      throw new InternalServerErrorException('Role configuration missing');
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -99,14 +109,50 @@ export class HomeService {
       throw new ConflictException('Ya perteneces a este hogar');
     }
 
-    const memberRole = await this.roleService.findOneBy({ name: RoleName.MEMBER });
+    const memberRole = await this.roleService.findOneBy({
+      name: RoleName.MEMBER,
+    });
     if (!memberRole) {
       throw new InternalServerErrorException('Member role not found');
     }
 
     await this.userHomeRoleService.assign(user.id, home.id, memberRole.id);
 
+    // Notifica a los integrantes existentes que un nuevo miembro se unió.
+    await this.notifyMembersJoined(home, user.id);
+
     return home;
+  }
+
+  // Avisa por push a todos los miembros del hogar (excepto el recién llegado)
+  // que alguien se ha unido. Best-effort: nunca rompe la operación de join.
+  private async notifyMembersJoined(
+    home: Home,
+    newUserId: string,
+  ): Promise<void> {
+    try {
+      const memberIds = (await this.userHomeRoleService.findAllByHome(home.id))
+        .map((m) => m.user_id)
+        .filter((id) => id !== newUserId);
+      if (memberIds.length === 0) return;
+
+      const joiner = await this.usersService.findOne(newUserId);
+      const firstName = [joiner.name, joiner.paternal_surname]
+        .filter(Boolean)
+        .join(' ');
+
+      await this.pushNotificationsService.sendToUsers(memberIds, {
+        channelId: 'home',
+        title: '🏠 Nuevo miembro',
+        body: `${firstName || 'Alguien'} se unió a "${home.name}"`,
+        data: { home_id: home.id },
+      });
+    } catch (err) {
+      this.logger.error(
+        `Fallo al notificar la unión al hogar ${home.id}`,
+        err instanceof Error ? err.stack : String(err),
+      );
+    }
   }
 
   async findAll(user: User) {
@@ -135,7 +181,10 @@ export class HomeService {
       throw new NotFoundException('Home not found');
     }
 
-    const userHomeRole = await this.userHomeRoleService.findOne(user.id, homeId);
+    const userHomeRole = await this.userHomeRoleService.findOne(
+      user.id,
+      homeId,
+    );
     if (!userHomeRole) {
       throw new BadRequestException('User does not belong to this home');
     }
@@ -153,12 +202,17 @@ export class HomeService {
       throw new NotFoundException('User not found');
     }
 
-    const userHomeRole = await this.userHomeRoleService.findOne(authUser.id, id);
+    const userHomeRole = await this.userHomeRoleService.findOne(
+      authUser.id,
+      id,
+    );
     if (!userHomeRole) {
       throw new BadRequestException('User does not belong to this home');
     }
     if (userHomeRole.role.name !== RoleName.OWNER) {
-      throw new ForbiddenException('Solo los administradores pueden editar el hogar');
+      throw new ForbiddenException(
+        'Solo los administradores pueden editar el hogar',
+      );
     }
 
     return this.homeRepository.update(id, updateHomeDto);
@@ -174,12 +228,17 @@ export class HomeService {
       throw new NotFoundException('User not found');
     }
 
-    const userHomeRole = await this.userHomeRoleService.findOne(authUser.id, id);
+    const userHomeRole = await this.userHomeRoleService.findOne(
+      authUser.id,
+      id,
+    );
     if (!userHomeRole) {
       throw new BadRequestException('User does not belong to this home');
     }
     if (userHomeRole.role.name !== RoleName.OWNER) {
-      throw new ForbiddenException('Solo los administradores pueden eliminar el hogar');
+      throw new ForbiddenException(
+        'Solo los administradores pueden eliminar el hogar',
+      );
     }
 
     await this.homeRepository.delete(id);
@@ -275,7 +334,12 @@ export class HomeService {
     if (!role) {
       throw new NotFoundException('Rol no encontrado');
     }
-    return this.userHomeRoleService.updateRole(authUser, userId, homeId, role.id);
+    return this.userHomeRoleService.updateRole(
+      authUser,
+      userId,
+      homeId,
+      role.id,
+    );
   }
 
   // Expulsa a un integrante del hogar. Solo los OWNER pueden hacerlo. No se puede
@@ -410,7 +474,10 @@ export class HomeService {
       throw new NotFoundException('User not found');
     }
 
-    const userHomeRole = await this.userHomeRoleService.findOne(authUser.id, homeId);
+    const userHomeRole = await this.userHomeRoleService.findOne(
+      authUser.id,
+      homeId,
+    );
     if (!userHomeRole) {
       throw new BadRequestException('User does not belong to this home');
     }

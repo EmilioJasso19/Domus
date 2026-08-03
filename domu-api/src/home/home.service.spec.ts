@@ -12,10 +12,16 @@ import { HomeService } from './home.service';
 import { Home } from './entities/home.entity';
 import { RoleService } from '@/role/role.service';
 import { UserHomeRoleService } from '@/user-home-role/user-home-role.service';
+import { UsersService } from '@/users/users.service';
+import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
 import { RoleName } from '@/role/constants/roles.constants';
 import { Task } from '@/tasks/entities/task.entity';
 import { Preference } from '@/preferences/entities/preference.entity';
 import { TaskOccurrence } from '@/task-occurrences/entities/task-occurrence.entity';
+
+// expo-server-sdk es ESM-only; se mocka porque HomeService (vía
+// PushNotificationsService) lo carga al resolver el módulo.
+jest.mock('expo-server-sdk', () => ({ Expo: class {} }));
 
 const mockUser: any = { id: '1', email: 'emilio@example.com', name: 'Emilio' };
 const memberUser: any = { id: '2', email: 'ana@example.com', name: 'Ana' };
@@ -47,7 +53,17 @@ const mockUserHomeRoleService = {
   findOne: jest.fn(),
   findOneBy: jest.fn(),
   findAll: jest.fn(),
+  findAllByHome: jest.fn().mockResolvedValue([]),
   exists: jest.fn(),
+};
+
+const mockUsersService = {
+  findOne: jest.fn(),
+};
+
+const mockPushService = {
+  sendToUsers: jest.fn(),
+  sendToUser: jest.fn(),
 };
 
 const mockQueryRunner = {
@@ -88,6 +104,8 @@ describe('HomeService', () => {
         { provide: getRepositoryToken(Home), useValue: mockHomeRepository },
         { provide: RoleService, useValue: mockRoleService },
         { provide: UserHomeRoleService, useValue: mockUserHomeRoleService },
+        { provide: UsersService, useValue: mockUsersService },
+        { provide: PushNotificationsService, useValue: mockPushService },
       ],
     }).compile();
 
@@ -102,13 +120,20 @@ describe('HomeService', () => {
   describe('C09 - Crear hogar con nombre válido', () => {
     it('debe crear el hogar, generar código y asignar al usuario como OWNER', async () => {
       mockRoleService.findOneBy.mockResolvedValue(ownerRole);
-      mockQueryRunner.manager.create.mockImplementation((_entity, data) => data);
+      mockQueryRunner.manager.create.mockImplementation(
+        (_entity, data) => data,
+      );
       mockQueryRunner.manager.save.mockResolvedValue(mockHome);
 
-      const result = await service.create({ name: 'Casa Jasso' } as any, mockUser);
+      const result = await service.create(
+        { name: 'Casa Jasso' } as any,
+        mockUser,
+      );
 
       // Se buscó el rol OWNER
-      expect(mockRoleService.findOneBy).toHaveBeenCalledWith({ name: RoleName.OWNER });
+      expect(mockRoleService.findOneBy).toHaveBeenCalledWith({
+        name: RoleName.OWNER,
+      });
       // Se abrió y confirmó la transacción
       expect(mockQueryRunner.startTransaction).toHaveBeenCalled();
       expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
@@ -122,7 +147,9 @@ describe('HomeService', () => {
   describe('C16 - Rollback al fallar la creación del hogar', () => {
     it('debe revertir la transacción y propagar el error si falla una escritura', async () => {
       mockRoleService.findOneBy.mockResolvedValue(ownerRole);
-      mockQueryRunner.manager.create.mockImplementation((_entity, data) => data);
+      mockQueryRunner.manager.create.mockImplementation(
+        (_entity, data) => data,
+      );
       // El primer save (hogar) pasa, el segundo (rol) falla
       mockQueryRunner.manager.save
         .mockResolvedValueOnce(mockHome)
@@ -154,7 +181,10 @@ describe('HomeService', () => {
       mockRoleService.findOneBy.mockResolvedValue(memberRole);
       mockUserHomeRoleService.assign.mockResolvedValue({});
 
-      const result = await service.join({ invitation_code: 'abc123' } as any, memberUser);
+      const result = await service.join(
+        { invitation_code: 'abc123' } as any,
+        memberUser,
+      );
 
       expect(mockUserHomeRoleService.assign).toHaveBeenCalledWith(
         memberUser.id,
@@ -162,6 +192,53 @@ describe('HomeService', () => {
         memberRole.id,
       );
       expect(result).toEqual(mockHome);
+    });
+
+    it('debe notificar a los miembros existentes (excluyendo al recién llegado) al unirse', async () => {
+      mockHomeRepository.findOneBy.mockResolvedValue(mockHome);
+      mockUserHomeRoleService.exists.mockResolvedValue(false); // aún no pertenece
+      mockRoleService.findOneBy.mockResolvedValue(memberRole);
+      mockUserHomeRoleService.assign.mockResolvedValue({});
+      // El hogar ya tiene al propietario (id '1') además del que se une (id '2').
+      mockUserHomeRoleService.findAllByHome.mockResolvedValue([
+        { user_id: '1', user: { name: 'Emilio', paternal_surname: 'Jasso' } },
+        {
+          user_id: memberUser.id,
+          user: { name: 'Ana', paternal_surname: 'Pérez' },
+        },
+      ]);
+      mockUsersService.findOne.mockResolvedValue({
+        id: memberUser.id,
+        name: 'Ana',
+        paternal_surname: 'Pérez',
+        maternal_surname: null,
+      });
+      mockPushService.sendToUsers.mockResolvedValue(undefined);
+
+      await service.join({ invitation_code: 'abc123' } as any, memberUser);
+
+      // Solo se avisa a los miembros ya existentes; el recién llegado queda fuera.
+      expect(mockPushService.sendToUsers).toHaveBeenCalledTimes(1);
+      expect(mockPushService.sendToUsers).toHaveBeenCalledWith(['1'], {
+        channelId: 'home',
+        title: '🏠 Nuevo miembro',
+        body: 'Ana Pérez se unió a "Casa Jasso"',
+        data: { home_id: mockHome.id },
+      });
+    });
+
+    it('no envía push si el hogar solo tiene al recién llegado', async () => {
+      mockHomeRepository.findOneBy.mockResolvedValue(mockHome);
+      mockUserHomeRoleService.exists.mockResolvedValue(false);
+      mockRoleService.findOneBy.mockResolvedValue(memberRole);
+      mockUserHomeRoleService.assign.mockResolvedValue({});
+      mockUserHomeRoleService.findAllByHome.mockResolvedValue([
+        { user_id: memberUser.id },
+      ]);
+
+      await service.join({ invitation_code: 'abc123' } as any, memberUser);
+
+      expect(mockPushService.sendToUsers).not.toHaveBeenCalled();
     });
   });
 
@@ -179,7 +256,9 @@ describe('HomeService', () => {
     it('debe lanzar ConflictException (409) si el usuario ya es miembro', async () => {
       mockHomeRepository.findOneBy.mockResolvedValue(mockHome);
       // join() comprueba la pertenencia con exists(), no con findOneBy.
-      mockUserHomeRoleService.exists.mockResolvedValue({ user_id: memberUser.id }); // ya pertenece
+      mockUserHomeRoleService.exists.mockResolvedValue({
+        user_id: memberUser.id,
+      }); // ya pertenece
 
       await expect(
         service.join({ invitation_code: 'abc123' } as any, memberUser),
@@ -193,7 +272,10 @@ describe('HomeService', () => {
         { home_id: '100' },
         { home_id: '101' },
       ]);
-      mockHomeRepository.findByIds.mockResolvedValue([mockHome, { ...mockHome, id: '101' }]);
+      mockHomeRepository.findByIds.mockResolvedValue([
+        mockHome,
+        { ...mockHome, id: '101' },
+      ]);
 
       const result = await service.findAll(mockUser);
 
@@ -214,7 +296,9 @@ describe('HomeService', () => {
     it('debe lanzar NotFoundException (404) si el hogar no existe', async () => {
       mockHomeRepository.findOneBy.mockResolvedValue(null);
 
-      await expect(service.findOne('999', mockUser)).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('999', mockUser)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -295,14 +379,20 @@ describe('HomeService', () => {
       // Preferencias borradas, acotadas a este usuario y a las tareas del hogar.
       expect(mockEntityManager.delete).toHaveBeenCalledWith(
         Preference,
-        expect.objectContaining({ user_id: memberUser.id, task_id: expect.anything() }),
+        expect.objectContaining({
+          user_id: memberUser.id,
+          task_id: expect.anything(),
+        }),
       );
 
       // Ocurrencias del usuario quedan sin responsable.
       const [entity, criteria, patch] = mockEntityManager.update.mock.calls[0];
       expect(entity).toBe(TaskOccurrence);
       expect(criteria).toEqual(
-        expect.objectContaining({ user_id: memberUser.id, task_id: expect.anything() }),
+        expect.objectContaining({
+          user_id: memberUser.id,
+          task_id: expect.anything(),
+        }),
       );
       expect(patch).toEqual({ user_id: null });
 

@@ -1,4 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
+// expo-server-sdk es ESM-only; la cadena de dependencias lo carga al resolver.
+jest.mock('expo-server-sdk', () => ({ Expo: class {} }));
 import { TasksController } from './tasks.controller';
 import { TasksService } from './tasks.service';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';

@@ -25,12 +25,12 @@
  * Los casos selectAssignee mapean a la tabla del algoritmo (C39–C44,
  * continuando la numeración tras el módulo de horarios que terminó en C38).
  */
+import { compositeCost, selectAssignee, ScoringContext } from './scoring';
 import {
-  compositeCost,
-  selectAssignee,
-  ScoringContext,
-} from './scoring';
-import { MemberSnapshot, AssignmentWeights, DEFAULT_WEIGHTS } from './assignment.types';
+  MemberSnapshot,
+  AssignmentWeights,
+  DEFAULT_WEIGHTS,
+} from './assignment.types';
 
 const member = (over: Partial<MemberSnapshot> = {}): MemberSnapshot => ({
   userId: '1',
@@ -64,7 +64,9 @@ describe('computeCost', () => {
     const liked = member({ currentLoad: 2, preference: -1 });
     const disliked = member({ currentLoad: 2, preference: 1 });
 
-    expect(compositeCost(liked, ctx)).toBeLessThan(compositeCost(disliked, ctx));
+    expect(compositeCost(liked, ctx)).toBeLessThan(
+      compositeCost(disliked, ctx),
+    );
   });
 
   it('arranque en frío: con max 0 y preferencia neutral devuelve 0 sin NaN', () => {
@@ -99,7 +101,12 @@ describe('selectAssignee', () => {
 
   // C39: único candidato disponible -> se le asigna pese a su carga/preferencia
   it('C39: asigna al único candidato aunque tenga carga alta y preferencia negativa', () => {
-    const only = member({ userId: '7', currentLoad: 99, preference: 1, recentCompletions: 50 });
+    const only = member({
+      userId: '7',
+      currentLoad: 99,
+      preference: 1,
+      recentCompletions: 50,
+    });
     expect(selectAssignee([only])?.userId).toBe('7');
   });
 
@@ -119,7 +126,11 @@ describe('selectAssignee', () => {
 
   // C42: penalización por historial
   it('C42: con carga y preferencia iguales, gana quien no trabajó recientemente', () => {
-    const rested = member({ userId: '1', currentLoad: 3, recentCompletions: 0 });
+    const rested = member({
+      userId: '1',
+      currentLoad: 3,
+      recentCompletions: 0,
+    });
     const busy = member({ userId: '2', currentLoad: 3, recentCompletions: 4 });
     expect(selectAssignee([busy, rested])?.userId).toBe('1');
   });

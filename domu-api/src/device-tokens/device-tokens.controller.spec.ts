@@ -42,6 +42,8 @@ describe('DeviceTokensController', () => {
 
   it('unregister delegates to the service', async () => {
     await controller.unregister('ExponentPushToken[abc]');
-    expect(service.deleteByToken).toHaveBeenCalledWith('ExponentPushToken[abc]');
+    expect(service.deleteByToken).toHaveBeenCalledWith(
+      'ExponentPushToken[abc]',
+    );
   });
 });

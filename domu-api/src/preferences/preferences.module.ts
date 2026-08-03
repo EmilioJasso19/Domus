@@ -9,11 +9,12 @@ import { UserHomeRoleModule } from '@/user-home-role/user-home-role.module';
 import { UsersModule } from '@/users/users.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Preference]),
-    AuthModule, 
-    TasksModule, 
-    UserHomeRoleModule, 
-    UsersModule
+  imports: [
+    TypeOrmModule.forFeature([Preference]),
+    AuthModule,
+    TasksModule,
+    UserHomeRoleModule,
+    UsersModule,
   ],
   controllers: [PreferencesController],
   providers: [PreferencesService],

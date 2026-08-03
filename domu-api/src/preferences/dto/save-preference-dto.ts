@@ -1,5 +1,12 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsInt, IsString, Max, Min, ValidateNested } from 'class-validator';
+import {
+  IsArray,
+  IsInt,
+  IsString,
+  Max,
+  Min,
+  ValidateNested,
+} from 'class-validator';
 
 export class PreferenceItemDto {
   @IsString()

@@ -8,13 +8,14 @@ import { UserHomeRoleModule } from '@/user-home-role/user-home-role.module';
 import { AuthModule } from '@/auth/auth.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([VirtualPet]),
-    UsersModule, 
+  imports: [
+    TypeOrmModule.forFeature([VirtualPet]),
+    UsersModule,
     UserHomeRoleModule,
     AuthModule,
   ],
   controllers: [VirtualPetController],
   providers: [VirtualPetService],
-  exports: [VirtualPetService]
+  exports: [VirtualPetService],
 })
-export class VirtualPetModule { }
+export class VirtualPetModule {}
