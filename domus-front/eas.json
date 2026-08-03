@@ -14,10 +14,15 @@
         "buildType": "apk"
       },
       "channel": "preview",
-      "env": { "EXPO_PUBLIC_API_URL": "https://domusv2-domuschoresv2-3hwjgq-870f49-146-190-223-31.sslip.io" }
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.domus.emiliojasso.dev"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.domus.emiliojasso.dev"
+      }
     }
   },
   "submit": {

@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -69,7 +68,7 @@ export default function RegisterScreen() {
         const field = e.path[0] as keyof RegisterForm;
         fieldErrors[field] = e.message;
       });
-      fieldErrors.password = fieldErrors.password + `${process.env.EXPO_PUBLIC_API_URL}`;
+      fieldErrors.password = fieldErrors.password;
       setErrors(fieldErrors);
       return;
     }
