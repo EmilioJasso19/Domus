@@ -103,6 +103,7 @@ export default function AvailabilityScreen() {
 	const [showStartCal, setShowStartCal] = useState(false);
 	const [showEndCal, setShowEndCal] = useState(false);
 
+	// TODO: use loading state to show spinner when fetching blocks
 	const [loading, setLoading] = useState(false);
 
 	const fetchBlocks = useCallback(async () => {

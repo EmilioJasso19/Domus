@@ -31,6 +31,7 @@ import {
 	assignOccurrenceToUser,
 	EFFORT_LABELS,
 } from "@/api/tasks";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 if (
 	Platform.OS === "android" &&
@@ -164,8 +165,8 @@ export default function CreateTask() {
 	// 24h "HH:MM" for the API (the backend validates ^([01]\d|2[0-3]):[0-5]\d$).
 	const payloadTime = dueTime
 		? `${String(dueTime.getHours()).padStart(2, "0")}:${String(
-				dueTime.getMinutes(),
-			).padStart(2, "0")}`
+			dueTime.getMinutes(),
+		).padStart(2, "0")}`
 		: undefined;
 
 	const initials = (m: Member) =>
@@ -218,7 +219,9 @@ export default function CreateTask() {
 	};
 
 	return (
-		<View className="flex-1 bg-slate-50">
+		<KeyboardAwareScrollView
+			className="flex-1 bg-slate-50"
+		>
 			{/* ── Header propio ── */}
 			<View className="flex-row items-center px-5 pt-5 pb-4">
 				<Pressable
@@ -232,296 +235,288 @@ export default function CreateTask() {
 				</Text>
 			</View>
 
-			{ submitError && (
+			{submitError && (
 				<View className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mx-5 mb-4">
 					<Text className="text-sm">{submitError}</Text>
 				</View>
-			) }
+			)}
 
 			{isLoadingTask ? (
 				<View className="flex-1 items-center justify-center">
 					<ActivityIndicator color={BLUE} />
 				</View>
 			) : (
-			<>
-			<ScrollView
-				className="flex-1"
-				contentContainerClassName="px-5 pb-8"
-				keyboardShouldPersistTaps="handled"
-				showsVerticalScrollIndicator={false}
-			>
-				{/* ── Nombre (input grande sin borde, como la referencia) ── */}
-				<TextInput
-					value={name}
-					onChangeText={setName}
-					placeholder="Ej. Sacar la basura"
-					placeholderTextColor="#A5B4CB"
-					onFocus={() => setNameFocused(true)}
-					onBlur={() => setNameFocused(false)}
-					className={`text-2xl font-nunito-bold text-gray-900 py-3 border-b ${nameFocused ? "" : "border-gray-200"} mb-6`}
-					style={nameFocused ? { borderBottomColor: FOCUS_BLUE } : undefined}
-				/>
-
-				{/* ── Fecha límite (acordeón con calendario) ── */}
-				<Text className="text-sm font-nunito-bold text-gray-700 mb-2">
-					Fecha límite
-				</Text>
-				<Pressable
-					onPress={toggleCalendar}
-					className="flex-row items-center bg-white border border-gray-200 rounded-2xl px-4 h-14"
-				>
-					<CalendarIcon size={18} color="#6B7280" />
-					<Text
-						className={`flex-1 ml-3 text-base font-nunito ${
-							dueDate ? "text-gray-900" : "text-gray-400"
-						}`}
+				<>
+					<ScrollView
+						className="flex-1"
+						contentContainerClassName="px-5 pb-8"
+						keyboardShouldPersistTaps="handled"
+						showsVerticalScrollIndicator={false}
 					>
-						{displayDate}
-					</Text>
-					{showCalendar ? (
-						<ChevronUp size={18} color="#6B7280" />
-					) : (
-						<ChevronDown size={18} color="#6B7280" />
-					)}
-				</Pressable>
-
-				{showCalendar && (
-					<View className="bg-white border border-gray-200 rounded-2xl mt-2 overflow-hidden">
-						<Calendar
-							onDayPress={(day) => {
-								setDueDate(day.dateString);
-								toggleCalendar();
-							}}
-							markedDates={
-								dueDate
-									? { [dueDate]: { selected: true, selectedColor: BLUE } }
-									: {}
-							}
-							minDate={new Date().toISOString().split("T")[0]}
-							theme={{
-								todayTextColor: BLUE,
-								selectedDayBackgroundColor: BLUE,
-								arrowColor: BLUE,
-								textDayFontFamily: "Nunito_400Regular",
-								textMonthFontFamily: "Nunito_700Bold",
-								textDayHeaderFontFamily: "Nunito_600SemiBold",
-							}}
+						{/* ── Nombre (input grande sin borde, como la referencia) ── */}
+						<TextInput
+							value={name}
+							onChangeText={setName}
+							placeholder="Ej. Sacar la basura"
+							placeholderTextColor="#A5B4CB"
+							onFocus={() => setNameFocused(true)}
+							onBlur={() => setNameFocused(false)}
+							className={`text-2xl font-nunito-bold text-gray-900 py-3 border-b ${nameFocused ? "" : "border-gray-200"} mb-6`}
+							style={nameFocused ? { borderBottomColor: FOCUS_BLUE } : undefined}
 						/>
-					</View>
-				)}
 
-				{/* ── Hora límite (opcional) ── */}
-				<Pressable
-					onPress={() => setShowTimePicker(true)}
-					className="flex-row items-center mt-3 self-start"
-				>
-					<Clock size={16} color={BLUE} />
-					<Text className="ml-2 text-sm font-nunito-semibold text-blue-600">
-						{displayTime ? `Hora: ${displayTime}` : "Agregar hora (opcional)"}
-					</Text>
-					{displayTime && (
-						<Pressable onPress={() => setDueTime(null)} className="ml-2">
-							<X size={14} color="#9CA3AF" />
-						</Pressable>
-					)}
-				</Pressable>
-
-				{showTimePicker && (
-					<DateTimePicker
-						value={dueTime ?? new Date()}
-						mode="time"
-						is24Hour
-						display={Platform.OS === "ios" ? "spinner" : "default"}
-						onChange={(event, selected) => {
-							setShowTimePicker(Platform.OS === "ios"); // Android cierra solo
-							if (event.type === "set" && selected) setDueTime(selected);
-						}}
-					/>
-				)}
-
-				{/* ── Frecuencia (segmented control) ── */}
-				<Text className="text-sm font-nunito-bold text-gray-700 mt-6 mb-2">
-					Frecuencia
-				</Text>
-				<View className="flex-row bg-gray-200/70 rounded-2xl p-1">
-					{FREQUENCIES.map((f) => {
-						const active = frequency === f.key;
-						return (
-							<Pressable
-								key={f.key}
-								onPress={() => setFrequency(f.key)}
-								className={`flex-1 h-11 items-center justify-center rounded-xl ${
-									active ? "bg-white" : ""
-								}`}
-							>
-								<Text
-									className={`text-sm ${
-										active
-											? "font-nunito-bold text-gray-900"
-											: "font-nunito-semibold text-gray-500"
-									}`}
-								>
-									{f.label}
-								</Text>
-							</Pressable>
-						);
-					})}
-				</View>
-
-				{/* ── Más opciones (acordeón) ── */}
-				<View className="h-px bg-gray-200 my-6" />
-				<Pressable
-					onPress={toggleMore}
-					className="flex-row items-center justify-between"
-				>
-					<Text className="text-lg font-nunito-extrabold text-gray-900">
-						Más opciones
-					</Text>
-					{showMore ? (
-						<ChevronUp size={20} color="#374151" />
-					) : (
-						<ChevronDown size={20} color="#374151" />
-					)}
-				</Pressable>
-
-				{showMore && (
-					<View className="mt-4">
-						{/* Responsable */}
-						<Text className="text-sm font-nunito-bold text-gray-700 mb-3">
-							Responsable
+						{/* ── Fecha límite (acordeón con calendario) ── */}
+						<Text className="text-sm font-nunito-bold text-gray-700 mb-2">
+							Fecha límite
 						</Text>
-						<ScrollView
-							horizontal
-							showsHorizontalScrollIndicator={false}
-							contentContainerClassName="gap-4"
+						<Pressable
+							onPress={toggleCalendar}
+							className="flex-row items-center bg-white border border-gray-200 rounded-2xl px-4 h-14"
 						>
-							{/* Automático */}
-							<Pressable
-								onPress={() => setResponsible("auto")}
-								className="items-center w-16"
-							>
-								<View
-									className={`w-14 h-14 rounded-full items-center justify-center ${
-										responsible === "auto"
-											? "bg-blue-600 border-2 border-blue-300"
-											: "bg-blue-600"
+							<CalendarIcon size={18} color="#6B7280" />
+							<Text
+								className={`flex-1 ml-3 text-base font-nunito ${dueDate ? "text-gray-900" : "text-gray-400"
 									}`}
-								>
-									<RefreshCw size={22} color="#fff" />
-								</View>
-								<Text className="text-xs font-nunito text-gray-600 mt-1.5">
-									Automático
-								</Text>
-							</Pressable>
+							>
+								{displayDate}
+							</Text>
+							{showCalendar ? (
+								<ChevronUp size={18} color="#6B7280" />
+							) : (
+								<ChevronDown size={18} color="#6B7280" />
+							)}
+						</Pressable>
 
-							{/* Miembros */}
-							{members.map((m) => {
-								const active = responsible === m.user_id;
-								return (
-									<Pressable
-										key={m.user_id}
-										onPress={() => setResponsible(m.user_id)}
-										className="items-center w-16"
-									>
-										<View
-											className={`w-14 h-14 rounded-full items-center justify-center bg-gray-200 ${
-												active ? "border-2 border-blue-500" : ""
-											}`}
-										>
-											<Text className="text-base font-nunito-bold text-gray-600">
-												{initials(m)}
-											</Text>
-										</View>
-										<Text
-											className="text-xs font-nunito text-gray-600 mt-1.5"
-											numberOfLines={1}
-										>
-											{m.name}
-										</Text>
-									</Pressable>
-								);
-							})}
-						</ScrollView>
+						{showCalendar && (
+							<View className="bg-white border border-gray-200 rounded-2xl mt-2 overflow-hidden">
+								<Calendar
+									onDayPress={(day) => {
+										setDueDate(day.dateString);
+										toggleCalendar();
+									}}
+									markedDates={
+										dueDate
+											? { [dueDate]: { selected: true, selectedColor: BLUE } }
+											: {}
+									}
+									minDate={new Date().toISOString().split("T")[0]}
+									theme={{
+										todayTextColor: BLUE,
+										selectedDayBackgroundColor: BLUE,
+										arrowColor: BLUE,
+										textDayFontFamily: "Nunito_400Regular",
+										textMonthFontFamily: "Nunito_700Bold",
+										textDayHeaderFontFamily: "Nunito_600SemiBold",
+									}}
+								/>
+							</View>
+						)}
 
-						{/* Esfuerzo físico */}
-						<Text className="text-sm font-nunito-bold text-gray-700 mt-6 mb-3">
-							Esfuerzo físico
+						{/* ── Hora límite (opcional) ── */}
+						<Pressable
+							onPress={() => setShowTimePicker(true)}
+							className="flex-row items-center mt-3 self-start"
+						>
+							<Clock size={16} color={BLUE} />
+							<Text className="ml-2 text-sm font-nunito-semibold text-blue-600">
+								{displayTime ? `Hora: ${displayTime}` : "Agregar hora (opcional)"}
+							</Text>
+							{displayTime && (
+								<Pressable onPress={() => setDueTime(null)} className="ml-2">
+									<X size={14} color="#9CA3AF" />
+								</Pressable>
+							)}
+						</Pressable>
+
+						{showTimePicker && (
+							<DateTimePicker
+								value={dueTime ?? new Date()}
+								mode="time"
+								is24Hour
+								display={Platform.OS === "ios" ? "spinner" : "default"}
+								onChange={(event, selected) => {
+									setShowTimePicker(Platform.OS === "ios"); // Android cierra solo
+									if (event.type === "set" && selected) setDueTime(selected);
+								}}
+							/>
+						)}
+
+						{/* ── Frecuencia (segmented control) ── */}
+						<Text className="text-sm font-nunito-bold text-gray-700 mt-6 mb-2">
+							Frecuencia
 						</Text>
-						<View className="flex-row flex-wrap gap-2">
-							{EFFORT_LEVELS.map((level) => {
-								const active = physicalEffort === level.value;
+						<View className="flex-row bg-gray-200/70 rounded-2xl p-1">
+							{FREQUENCIES.map((f) => {
+								const active = frequency === f.key;
 								return (
 									<Pressable
-										key={level.value}
-										onPress={() => setPhysicalEffort(level.value)}
-										accessibilityRole="button"
-										accessibilityState={{ selected: active }}
-										className={`h-10 items-center justify-center rounded-full px-4 ${
-											active
-												? "bg-blue-600"
-												: "bg-white border border-gray-200"
-										}`}
+										key={f.key}
+										onPress={() => setFrequency(f.key)}
+										className={`flex-1 h-11 items-center justify-center rounded-xl ${active ? "bg-white" : ""
+											}`}
 									>
 										<Text
-											className={`text-sm ${
-												active
-													? "font-nunito-bold text-white"
-													: "font-nunito-semibold text-gray-600"
-											}`}
+											className={`text-sm ${active
+												? "font-nunito-bold text-gray-900"
+												: "font-nunito-semibold text-gray-500"
+												}`}
 										>
-											{level.label}
+											{f.label}
 										</Text>
 									</Pressable>
 								);
 							})}
 						</View>
 
-						{/* Descripción */}
-						<Text className="text-sm font-nunito-bold text-gray-700 mt-6 mb-2">
-							Descripción
-						</Text>
-						<TextInput
-							value={description}
-							onChangeText={setDescription}
-							placeholder="Agrega detalles opcionales..."
-							placeholderTextColor="#9CA3AF"
-							multiline
-							numberOfLines={4}
-							textAlignVertical="top"
-							onFocus={() => setDescFocused(true)}
-							onBlur={() => setDescFocused(false)}
-							className={`bg-white border ${descFocused ? "" : "border-gray-200"} rounded-2xl px-4 py-3 text-base font-nunito text-gray-900 min-h-[110px]`}
-							style={descFocused ? { borderColor: FOCUS_BLUE } : undefined}
-						/>
-					</View>
-				)}
-			</ScrollView>
-
-			{/* ── CTA fijo abajo ── */}
-			<View className="px-5 pb-10 pt-3 bg-slate-50">
-				<Pressable
-					onPress={handleSubmit}
-					disabled={isSubmitting || !name.trim() || !dueDate}
-					className={`flex-row items-center justify-center gap-2 rounded-2xl h-14 ${
-						isSubmitting || !name.trim() || !dueDate
-							? "bg-blue-400"
-							: "bg-blue-600 active:bg-blue-700"
-					}`}
-				>
-					{isSubmitting ? (
-						<ActivityIndicator color="#fff" />
-					) : (
-						<>
-							<CheckCircle2 size={20} color="#fff" />
-							<Text className="text-white text-base font-nunito-bold tracking-wide">
-								{isEditing ? "Guardar cambios" : "Crear tarea"}
+						{/* ── Más opciones (acordeón) ── */}
+						<View className="h-px bg-gray-200 my-6" />
+						<Pressable
+							onPress={toggleMore}
+							className="flex-row items-center justify-between"
+						>
+							<Text className="text-lg font-nunito-extrabold text-gray-900">
+								Más opciones
 							</Text>
-						</>
-					)}
-				</Pressable>
-			</View>
-			</>
+							{showMore ? (
+								<ChevronUp size={20} color="#374151" />
+							) : (
+								<ChevronDown size={20} color="#374151" />
+							)}
+						</Pressable>
+
+						{showMore && (
+							<View className="mt-4">
+								{/* Responsable */}
+								<Text className="text-sm font-nunito-bold text-gray-700 mb-3">
+									Responsable
+								</Text>
+								<ScrollView
+									horizontal
+									showsHorizontalScrollIndicator={false}
+									contentContainerClassName="gap-4"
+								>
+									{/* Automático */}
+									<Pressable
+										onPress={() => setResponsible("auto")}
+										className="items-center w-16"
+									>
+										<View
+											className={`w-14 h-14 rounded-full items-center justify-center ${responsible === "auto"
+												? "bg-blue-600 border-2 border-blue-300"
+												: "bg-blue-600"
+												}`}
+										>
+											<RefreshCw size={22} color="#fff" />
+										</View>
+										<Text className="text-xs font-nunito text-gray-600 mt-1.5">
+											Automático
+										</Text>
+									</Pressable>
+
+									{/* Miembros */}
+									{members.map((m) => {
+										const active = responsible === m.user_id;
+										return (
+											<Pressable
+												key={m.user_id}
+												onPress={() => setResponsible(m.user_id)}
+												className="items-center w-16"
+											>
+												<View
+													className={`w-14 h-14 rounded-full items-center justify-center bg-gray-200 ${active ? "border-2 border-blue-500" : ""
+														}`}
+												>
+													<Text className="text-base font-nunito-bold text-gray-600">
+														{initials(m)}
+													</Text>
+												</View>
+												<Text
+													className="text-xs font-nunito text-gray-600 mt-1.5"
+													numberOfLines={1}
+												>
+													{m.name}
+												</Text>
+											</Pressable>
+										);
+									})}
+								</ScrollView>
+
+								{/* Esfuerzo físico */}
+								<Text className="text-sm font-nunito-bold text-gray-700 mt-6 mb-3">
+									Esfuerzo físico
+								</Text>
+								<View className="flex-row flex-wrap gap-2">
+									{EFFORT_LEVELS.map((level) => {
+										const active = physicalEffort === level.value;
+										return (
+											<Pressable
+												key={level.value}
+												onPress={() => setPhysicalEffort(level.value)}
+												accessibilityRole="button"
+												accessibilityState={{ selected: active }}
+												className={`h-10 items-center justify-center rounded-full px-4 ${active
+													? "bg-blue-600"
+													: "bg-white border border-gray-200"
+													}`}
+											>
+												<Text
+													className={`text-sm ${active
+														? "font-nunito-bold text-white"
+														: "font-nunito-semibold text-gray-600"
+														}`}
+												>
+													{level.label}
+												</Text>
+											</Pressable>
+										);
+									})}
+								</View>
+
+								{/* Descripción */}
+								<Text className="text-sm font-nunito-bold text-gray-700 mt-6 mb-2">
+									Descripción
+								</Text>
+								<TextInput
+									value={description}
+									onChangeText={setDescription}
+									placeholder="Agrega detalles opcionales..."
+									placeholderTextColor="#9CA3AF"
+									multiline
+									numberOfLines={4}
+									textAlignVertical="top"
+									onFocus={() => setDescFocused(true)}
+									onBlur={() => setDescFocused(false)}
+									className={`bg-white border ${descFocused ? "" : "border-gray-200"} rounded-2xl px-4 py-3 text-base font-nunito text-gray-900 min-h-[110px]`}
+									style={descFocused ? { borderColor: FOCUS_BLUE } : undefined}
+								/>
+							</View>
+						)}
+					</ScrollView>
+
+					{/* ── CTA fijo abajo ── */}
+					<View className="px-5 pb-10 pt-3 bg-slate-50">
+						<Pressable
+							onPress={handleSubmit}
+							disabled={isSubmitting || !name.trim() || !dueDate}
+							className={`flex-row items-center justify-center gap-2 rounded-2xl h-14 ${isSubmitting || !name.trim() || !dueDate
+								? "bg-blue-400"
+								: "bg-blue-600 active:bg-blue-700"
+								}`}
+						>
+							{isSubmitting ? (
+								<ActivityIndicator color="#fff" />
+							) : (
+								<>
+									<CheckCircle2 size={20} color="#fff" />
+									<Text className="text-white text-base font-nunito-bold tracking-wide">
+										{isEditing ? "Guardar cambios" : "Crear tarea"}
+									</Text>
+								</>
+							)}
+						</Pressable>
+					</View>
+				</>
 			)}
-		</View>
+		</KeyboardAwareScrollView>
 	);
 }

@@ -4,14 +4,15 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore, registerSchema, type RegisterForm } from '../../store/auth-store';
 import InputField from '../../components/ui/input-field';
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 
 type FormErrors = Partial<Record<keyof RegisterForm, string>>;
 
@@ -79,16 +80,17 @@ export default function RegisterScreen() {
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-slate-50"
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={"padding"}
+      keyboardVerticalOffset={50}
     >
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 pt-14 pb-4">
-        <TouchableOpacity
+        <Pressable
           onPress={() => router.push('/(auth)/login')}
           className="w-9 h-9 items-center justify-center"
         >
           <Ionicons name="chevron-back" size={22} color="#2563EB" />
-        </TouchableOpacity>
+        </Pressable>
         <Text className="text-[17px] font-nunito-bold text-blue-600 tracking-tight">
           Domus
         </Text>
@@ -96,7 +98,7 @@ export default function RegisterScreen() {
       </View>
 
       <ScrollView
-        className="flex-1"
+        className="flex-grow"
         contentContainerClassName="px-6 pb-12"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}

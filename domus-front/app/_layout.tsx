@@ -1,4 +1,3 @@
-
 import { Stack, useRootNavigationState, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
@@ -13,6 +12,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useHomeStore } from "@/store/home-store";
 import { registerForPushNotificationsAsync } from "@/utils/push-notifications";
 import { AppState } from "react-native";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -73,16 +73,18 @@ function RootLayoutNav() {
 
 	return (
 		// <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-		<GestureHandlerRootView className="flex-1">
-			<SafeAreaView className="flex-1">
-				<Stack screenOptions={{ headerShown: false }}>
-					<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-					<Stack.Screen name="(auth)" options={{ headerShown: false }} />
-				</Stack>
-				<StatusBar style="auto" />
-				<Toast />
-			</SafeAreaView>
-		</GestureHandlerRootView>
+		<KeyboardProvider>
+			<GestureHandlerRootView className="flex-1">
+				<SafeAreaView className="flex-1">
+					<Stack screenOptions={{ headerShown: false }}>
+						<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+						<Stack.Screen name="(auth)" options={{ headerShown: false }} />
+					</Stack>
+					<StatusBar style="auto" />
+					<Toast />
+				</SafeAreaView>
+			</GestureHandlerRootView>
+		</KeyboardProvider>
 		// </ThemeProvider>
 	);
 }

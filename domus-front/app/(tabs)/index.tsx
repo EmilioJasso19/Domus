@@ -29,7 +29,7 @@ export default function SetupHouseholdScreen() {
 	const router = useRouter();
 	const sheetRef = useRef<BottomSheetModal>(null);
 	const { user } = useAuthStore();
-	const { households, setHouseholds, selectHome, refreshHomes, selectedHome } = useHomeStore();
+	const { selectHome, refreshHomes } = useHomeStore();
 
 	const [mode, setMode] = useState<SheetMode>(initialMode === "join" ? "join" : "create");
 	const [value, setValue] = useState("");
@@ -202,7 +202,8 @@ export default function SetupHouseholdScreen() {
 					enableDynamicSizing
 					backdropComponent={renderBackdrop}
 					keyboardBehavior="interactive"
-					android_keyboardInputMode="adjustResize"
+					keyboardBlurBehavior="restore"
+					android_keyboardInputMode="adjustPan"
 					handleIndicatorStyle={{ backgroundColor: "#D1D5DB" }}
 				>
 					<BottomSheetView className="px-6 pt-2 pb-10">

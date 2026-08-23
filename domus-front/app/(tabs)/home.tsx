@@ -14,8 +14,6 @@ import {
 	ChevronDown,
 	ChevronRight,
 	Clock,
-	User as UserIcon,
-	ShoppingCart,
 	Plus,
 	Home as HomeIcon,
 	Users as UsersIcon,
