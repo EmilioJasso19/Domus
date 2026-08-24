@@ -1,4 +1,5 @@
-import { View, Text } from "react-native";
+import { Text,View } from "react-native";
+
 import { Member } from "@/mocks/mock-members";
 
 export default function MemberCard({ member }: { member: Member }) {

@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
-import { View, Text, Pressable, LayoutAnimation } from "react-native";
 import { ChevronDown, ChevronUp } from "lucide-react-native";
+import type { ReactNode } from "react";
+import { LayoutAnimation,Pressable, Text, View } from "react-native";
 
 type TaskSectionProps = {
 	title: string;

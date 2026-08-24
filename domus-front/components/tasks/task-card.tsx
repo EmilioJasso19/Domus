@@ -1,5 +1,6 @@
-import { View, Text, Pressable } from "react-native";
 import { Check, Clock, Repeat } from "lucide-react-native";
+import { Pressable,Text, View } from "react-native";
+
 import type { TaskFrequency } from "@/api/tasks";
 
 const BLUE = "#3A63FA";

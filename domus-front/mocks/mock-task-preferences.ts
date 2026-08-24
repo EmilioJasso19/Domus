@@ -1,8 +1,8 @@
 import {
 	CookingPot,
+	type LucideIcon,
 	Trash2,
 	Utensils,
-	type LucideIcon,
 } from "lucide-react-native";
 
 export type PreferenceValue = "neutral" | "like" | "dislike";

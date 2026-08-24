@@ -1,5 +1,5 @@
-import { Preference, PreferencePayloadItem } from "@/constants/types";
 import axios from "@/api/axios";
+import { Preference, PreferencePayloadItem } from "@/constants/types";
 
 export const getPreferences = async (
     homeId: string

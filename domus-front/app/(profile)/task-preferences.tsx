@@ -1,3 +1,5 @@
+import { useRouter } from "expo-router";
+import { ArrowLeft, Check, ListChecks } from "lucide-react-native";
 import { useEffect, useMemo, useState } from "react";
 import {
 	ActivityIndicator,
@@ -6,13 +8,12 @@ import {
 	Text,
 	View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { ArrowLeft, Check, ListChecks } from "lucide-react-native";
+
+import { getPreferences, saveManyPreferences } from "@/api/preferences";
 import { TaskPreferenceRow } from "@/components/profile/task-preference-row";
-import type { PreferenceValue } from "@/mocks/mock-task-preferences";
 import { BACKGROUND, BLUE } from "@/constants/colors";
 import { Preference } from "@/constants/types";
-import { getPreferences, saveManyPreferences } from "@/api/preferences";
+import type { PreferenceValue } from "@/mocks/mock-task-preferences";
 import { useHomeStore } from "@/store/home-store";
 
 // El backend trabaja con un score numérico (-1 = like / 0 = neutral / 1 = dislike);

@@ -1,18 +1,19 @@
-import React, { useState, useMemo } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useMemo,useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  ScrollView,
   Text,
   TouchableOpacity,
-  ScrollView,
-  Platform,
-  ActivityIndicator,
-  Pressable,
+  View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuthStore, registerSchema, type RegisterForm } from '../../store/auth-store';
-import InputField from '../../components/ui/input-field';
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+
+import InputField from '../../components/ui/input-field';
+import { type RegisterForm,registerSchema, useAuthStore } from '../../store/auth-store';
 
 type FormErrors = Partial<Record<keyof RegisterForm, string>>;
 

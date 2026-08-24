@@ -1,7 +1,8 @@
-import { HouseholdMember } from "@/constants/types";
 import { useCallback } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Swipeable } from "react-native-gesture-handler";
+
+import { HouseholdMember } from "@/constants/types";
 
 const avatarColors = [
 	{ background: "#E0E7FF", text: "#1E3A8A" },

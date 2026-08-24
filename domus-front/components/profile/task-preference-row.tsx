@@ -1,6 +1,7 @@
+import { ThumbsDown, ThumbsUp } from "lucide-react-native";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
-import { ThumbsDown, ThumbsUp } from "lucide-react-native";
+
 import type {
 	PreferenceValue,
 	TaskPreference,

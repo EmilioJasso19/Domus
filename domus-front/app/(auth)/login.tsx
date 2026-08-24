@@ -1,22 +1,24 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-	View,
-	Text,
+	ActivityIndicator,
+	Image,
 	KeyboardAvoidingView,
 	Platform,
-	ActivityIndicator,
-	ScrollView,
-	Image,
 	Pressable,
+	ScrollView,
+	Text,
+	View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import {
-	useAuthStore,
-	loginSchema,
-	type LoginForm,
-} from "../../store/auth-store";
+
 import InputField from "@/components/ui/input-field";
+
+import {
+	type LoginForm,
+	loginSchema,
+	useAuthStore,
+} from "../../store/auth-store";
 
 type FormErrors = Partial<Record<keyof LoginForm, string>>;
 

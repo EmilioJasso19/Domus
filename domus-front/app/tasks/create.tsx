@@ -1,37 +1,38 @@
-import React, { useEffect, useState } from "react";
-import { BLUE as APP_BLUE } from "@/constants/colors";
-import {
-	View,
-	Text,
-	Pressable,
-	ScrollView,
-	TextInput,
-	Platform,
-	LayoutAnimation,
-	UIManager,
-	ActivityIndicator,
-} from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { useLocalSearchParams,useRouter } from "expo-router";
 import {
 	ArrowLeft,
 	Calendar as CalendarIcon,
+	CheckCircle2,
 	ChevronDown,
 	ChevronUp,
 	Clock,
 	RefreshCw,
-	CheckCircle2,
 	X,
 } from "lucide-react-native";
-import { Calendar } from "react-native-calendars";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import axios from "@/api/axios";
-import { useHomeStore } from "@/store/home-store";
+import React, { useEffect, useState } from "react";
 import {
-	getTaskOccurrence,
+	ActivityIndicator,
+	LayoutAnimation,
+	Platform,
+	Pressable,
+	ScrollView,
+	Text,
+	TextInput,
+	UIManager,
+	View,
+} from "react-native";
+import { Calendar } from "react-native-calendars";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+
+import axios from "@/api/axios";
+import {
 	assignOccurrenceToUser,
 	EFFORT_LABELS,
+	getTaskOccurrence,
 } from "@/api/tasks";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { BLUE as APP_BLUE } from "@/constants/colors";
+import { useHomeStore } from "@/store/home-store";
 
 if (
 	Platform.OS === "android" &&

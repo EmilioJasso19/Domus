@@ -1,34 +1,35 @@
+import { useFocusEffect, useRouter } from "expo-router";
+import { Search, Sparkles } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-	View,
-	Text,
-	Pressable,
-	ScrollView,
-	TextInput,
 	ActivityIndicator,
-	RefreshControl,
-	Platform,
-	UIManager,
 	Alert,
+	Platform,
+	Pressable,
+	RefreshControl,
+	ScrollView,
+	Text,
+	TextInput,
+	UIManager,
+	View,
 } from "react-native";
-import { Search, Sparkles } from "lucide-react-native";
-import { useFocusEffect, useRouter } from "expo-router";
 import Toast from "react-native-toast-message";
+
+import { getHomeMembers } from "@/api/homes";
 import {
+	type ApiTask,
+	assignAllForHome,
 	getTasks,
 	toggleTaskCompletion,
-	assignAllForHome,
-	type ApiTask,
 } from "@/api/tasks";
-import { getHomeMembers } from "@/api/homes";
-import { HouseholdMember } from "@/constants/types";
-import { useHomeStore } from "@/store/home-store";
-import { useAuthStore } from "@/store/auth-store";
+import { EmptyState } from "@/components/empty-state";
+import { SectionEmpty } from "@/components/section-empty";
 import { TaskCard, type TaskCardModel } from "@/components/tasks/task-card";
 import { TaskSection } from "@/components/tasks/task-section";
 import { BACKGROUND, BLUE } from "@/constants/colors";
-import { SectionEmpty } from "@/components/section-empty";
-import { EmptyState } from "@/components/empty-state";
+import { HouseholdMember } from "@/constants/types";
+import { useAuthStore } from "@/store/auth-store";
+import { useHomeStore } from "@/store/home-store";
 
 // LayoutAnimation (used by the collapsible sections) needs to be enabled on Android.
 if (

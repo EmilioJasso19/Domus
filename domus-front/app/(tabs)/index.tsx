@@ -1,22 +1,23 @@
-import { useCallback, useRef, useState } from "react";
-import {
-	View,
-	Text,
-	Pressable,
-	ScrollView,
-	ActivityIndicator,
-	Keyboard,
-} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, Redirect, useLocalSearchParams } from "expo-router";
 import {
+	BottomSheetBackdrop,
 	BottomSheetModal,
 	BottomSheetModalProvider,
-	BottomSheetView,
-	BottomSheetBackdrop,
 	BottomSheetTextInput,
+	BottomSheetView,
 } from "@gorhom/bottom-sheet";
+import { Redirect, useLocalSearchParams,useRouter } from "expo-router";
+import { useCallback, useRef, useState } from "react";
+import {
+	ActivityIndicator,
+	Keyboard,
+	Pressable,
+	ScrollView,
+	Text,
+	View,
+} from "react-native";
 import Toast from "react-native-toast-message";
+
 import axios from "@/api/axios";
 import { BLUE } from "@/constants/colors";
 import { useAuthStore } from "@/store/auth-store";

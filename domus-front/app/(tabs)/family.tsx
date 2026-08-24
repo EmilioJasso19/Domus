@@ -1,4 +1,5 @@
 import * as Clipboard from "expo-clipboard";
+import { useRouter } from "expo-router";
 import { LogOut, Plus } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -11,11 +12,8 @@ import {
 	Text,
 	View,
 } from "react-native";
-import { useRouter } from "expo-router";
 import Toast from "react-native-toast-message";
-import { FamilyInvitationCard } from "@/components/family/family-invitation-card";
-import { FamilyMembersSection } from "@/components/family/family-members-section";
-import { WeeklyActivitySection } from "@/components/family/weekly-activity-section";
+
 import {
 	expelMember,
 	getHomeActivity,
@@ -25,16 +23,19 @@ import {
 	regenerateInvitationCode,
 	updateMemberRole,
 } from "@/api/homes";
+import { EmptyState } from "@/components/empty-state";
+import { FamilyInvitationCard } from "@/components/family/family-invitation-card";
+import { FamilyMembersSection } from "@/components/family/family-members-section";
+import { WeeklyActivitySection } from "@/components/family/weekly-activity-section";
+import { BACKGROUND, BLUE, ERROR } from "@/constants/colors";
 import {
-	HouseholdMember,
 	HomeItem,
+	HouseholdMember,
 	RecentActivity,
 	WeeklyActivityItem,
 } from "@/constants/types";
 import { useAuthStore } from "@/store/auth-store";
 import { useHomeStore } from "@/store/home-store";
-import { BACKGROUND, BLUE, ERROR } from "@/constants/colors";
-import { EmptyState } from "@/components/empty-state";
 
 // Agrupa las tareas completadas de la semana por integrante y las ordena de
 // mayor a menor cantidad (ranking de actividad).

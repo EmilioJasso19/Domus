@@ -1,36 +1,37 @@
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
-	View,
-	Text,
-	Pressable,
-	ScrollView,
-	ActivityIndicator,
-	LayoutAnimation,
-	Platform,
-	UIManager,
-} from "react-native";
+	BottomSheetBackdrop,
+	BottomSheetModal,
+	BottomSheetModalProvider,
+	BottomSheetView,
+} from "@gorhom/bottom-sheet";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
 	ChevronDown,
 	ChevronRight,
 	Clock,
-	Plus,
 	Home as HomeIcon,
+	Plus,
 	Users as UsersIcon,
 } from "lucide-react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-	BottomSheetModal,
-	BottomSheetModalProvider,
-	BottomSheetView,
-	BottomSheetBackdrop,
-} from "@gorhom/bottom-sheet";
+	ActivityIndicator,
+	LayoutAnimation,
+	Platform,
+	Pressable,
+	ScrollView,
+	Text,
+	UIManager,
+	View,
+} from "react-native";
+
 import axios from "@/api/axios";
-import { useAuthStore } from "@/store/auth-store";
-import { HomeItem, Task } from "@/constants/types";
-import { useHomeStore } from "@/store/home-store";
-import { BACKGROUND } from "@/constants/colors";
-import { PetDisplay } from "@/components/home/pet-display";
 import { getPet } from "@/api/virtual-pet";
+import { PetDisplay } from "@/components/home/pet-display";
+import { BACKGROUND } from "@/constants/colors";
+import { HomeItem, Task } from "@/constants/types";
+import { useAuthStore } from "@/store/auth-store";
+import { useHomeStore } from "@/store/home-store";
 
 // Habilitar LayoutAnimation en Android (para el desplegable)
 if (

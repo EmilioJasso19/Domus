@@ -1,7 +1,8 @@
 import { Tabs, useRouter } from "expo-router";
+import { CheckSquare, Home, Plus,Settings, Users } from "lucide-react-native";
 import React from "react";
-import { View, Pressable, Platform } from "react-native";
-import { Home, CheckSquare, Users, Settings, Plus } from "lucide-react-native";
+import { Platform,Pressable, View } from "react-native";
+
 import { HapticTab } from "@/components/haptic-tab";
 
 const ACTIVE = "#2563EB";

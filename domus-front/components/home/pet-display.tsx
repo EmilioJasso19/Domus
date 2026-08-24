@@ -1,9 +1,10 @@
+import { Check } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { Image, Pressable, Text, TextInput, View } from "react-native";
-import { Check } from "lucide-react-native";
 import Toast from "react-native-toast-message";
-import { BLUE } from "@/constants/colors";
+
 import { updatePetName } from "@/api/virtual-pet";
+import { BLUE } from "@/constants/colors";
 
 type PetDisplayProps = {
 	points: number; // puntos del hogar

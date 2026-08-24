@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { View, Text, Pressable } from "react-native";
-import { mockReminders, Reminder, Task } from "@/mocks/mock-tasks";
 import { useState } from "react";
-import axios from "@/api/axios";
+import { Pressable,Text, View } from "react-native";
 import Toast from "react-native-toast-message";
+
+import axios from "@/api/axios";
+import { mockReminders, Reminder, Task } from "@/mocks/mock-tasks";
 
 export default function TaskCard({
 	task,

@@ -1,41 +1,42 @@
-import { useCallback, useMemo, useState } from "react";
-import {
-	View,
-	Text,
-	Pressable,
-	ScrollView,
-	ActivityIndicator,
-	Modal,
-	Alert,
-} from "react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
 	ArrowLeft,
-	EllipsisVertical,
-	Calendar as CalendarIcon,
-	Clock,
-	Repeat,
 	ArrowLeftRight,
-	Dumbbell,
-	Pencil,
-	Trash2,
+	Calendar as CalendarIcon,
 	CheckCircle2,
+	Clock,
+	Dumbbell,
+	EllipsisVertical,
+	Pencil,
+	Repeat,
+	Trash2,
 	X,
 } from "lucide-react-native";
-import Toast from "react-native-toast-message";
+import { useCallback, useMemo, useState } from "react";
 import {
-	getTaskOccurrence,
-	toggleTaskCompletion,
+	ActivityIndicator,
+	Alert,
+	Modal,
+	Pressable,
+	ScrollView,
+	Text,
+	View,
+} from "react-native";
+import Toast from "react-native-toast-message";
+
+import { getHomeMembers } from "@/api/homes";
+import {
+	type ApiTask,
 	assignOccurrenceToUser,
 	deleteTaskOccurrence,
 	EFFORT_LABELS,
-	type ApiTask,
+	getTaskOccurrence,
 	type TaskFrequency,
+	toggleTaskCompletion,
 } from "@/api/tasks";
-import { getHomeMembers } from "@/api/homes";
+import { BACKGROUND, BLUE } from "@/constants/colors";
 import { HouseholdMember } from "@/constants/types";
 import { useHomeStore } from "@/store/home-store";
-import { BACKGROUND, BLUE } from "@/constants/colors";
 
 const SUCCESS = "#1A7330";
 

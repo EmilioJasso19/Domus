@@ -1,6 +1,7 @@
 import Axios from 'axios';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+
 import { useAuthStore } from '@/store/auth-store';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/';

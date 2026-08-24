@@ -1,6 +1,6 @@
+import { Trash2 } from "lucide-react-native";
 import React from "react";
 import { Pressable, Text, View } from "react-native";
-import { Trash2 } from "lucide-react-native";
 
 const BLUE = "#3A63FA";
 

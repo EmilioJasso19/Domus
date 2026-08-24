@@ -1,6 +1,7 @@
-import { WeeklyActivityItem } from "@/constants/types";
 import { PartyPopper } from "lucide-react-native";
 import { Text, View } from "react-native";
+
+import { WeeklyActivityItem } from "@/constants/types";
 
 const cardShadow = {
 	shadowColor: "#111827",

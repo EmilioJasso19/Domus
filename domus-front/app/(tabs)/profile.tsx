@@ -1,26 +1,27 @@
-import React, { useCallback, useRef } from "react";
-import { View, Text, Pressable, ScrollView } from "react-native";
-import { useRouter } from "expo-router";
 import {
-	Settings,
-	ChevronDown,
-	ChevronRight,
-	SlidersHorizontal,
-	CalendarCheck,
-	LogOut,
-	Home as HomeIcon,
-	Check,
-} from "lucide-react-native";
-import {
+	BottomSheetBackdrop,
 	BottomSheetModal,
 	BottomSheetModalProvider,
 	BottomSheetView,
-	BottomSheetBackdrop,
 } from "@gorhom/bottom-sheet";
+import { useRouter } from "expo-router";
+import {
+	CalendarCheck,
+	Check,
+	ChevronDown,
+	ChevronRight,
+	Home as HomeIcon,
+	LogOut,
+	Settings,
+	SlidersHorizontal,
+} from "lucide-react-native";
+import React, { useCallback, useRef } from "react";
+import { Pressable, ScrollView,Text, View } from "react-native";
+
+import { BACKGROUND, BLUE,ERROR } from "@/constants/colors";
+import { Household } from "@/constants/types";
 import { useAuthStore } from "@/store/auth-store";
 import { useHomeStore } from "@/store/home-store";
-import { Household } from "@/constants/types";
-import { ERROR, BACKGROUND, BLUE } from "@/constants/colors";
 
 const cardShadow = {
 	shadowColor: "#111827",
