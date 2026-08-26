@@ -6,7 +6,7 @@ import {
 	BottomSheetTextInput,
 	BottomSheetView,
 } from "@gorhom/bottom-sheet";
-import { Redirect, useLocalSearchParams,useRouter } from "expo-router";
+import {  useLocalSearchParams,useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import {
 	ActivityIndicator,

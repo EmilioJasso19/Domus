@@ -12,7 +12,6 @@ import {
 	ChevronRight,
 	Home as HomeIcon,
 	LogOut,
-	Settings,
 	SlidersHorizontal,
 } from "lucide-react-native";
 import React, { useCallback, useRef } from "react";

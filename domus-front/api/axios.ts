@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 
 import { useAuthStore } from '@/store/auth-store';
+// import { getLocalTimeZone } from '@/utils';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/';
 
@@ -17,6 +18,7 @@ axios.interceptors.request.use(async (config) => {
 	const token = await SecureStore.getItemAsync('token');
 	if (token) {
 		config.headers['Authorization'] = `Bearer ${token}`;
+		// config.headers['X-Timezone'] = getLocalTimeZone();
 	}
 	return config;
 });

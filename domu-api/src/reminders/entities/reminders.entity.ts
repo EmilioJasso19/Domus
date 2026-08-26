@@ -12,7 +12,7 @@ export class Reminder {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id!: number;
 
-  @ManyToOne(() => TaskOccurrence, { nullable: false })
+  @ManyToOne(() => TaskOccurrence, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'occurrence_id' })
   occurrence!: TaskOccurrence;
 

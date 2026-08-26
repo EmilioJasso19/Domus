@@ -6,6 +6,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
+	Calendar1,
 	ChevronDown,
 	ChevronRight,
 	Clock,
@@ -118,7 +119,7 @@ export default function DashboardScreen() {
 					setCompletedToday([]);
 				})
 				.finally(() => setIsLoading(false));
-		}, [householdIdSelected, refreshHomes])
+		}, [householdIdSelected, refreshHomes, user?.id])
 	);
 
 	const openHomeSelector = useCallback(() => sheetRef.current?.present(), []);
@@ -149,7 +150,7 @@ export default function DashboardScreen() {
 		if (!householdIdSelected) {
 			router.replace("/");
 		}
-	}, [householdIdSelected]);
+	}, [householdIdSelected, router]);
 
 	if (!householdIdSelected) {
 		return null;
@@ -248,7 +249,7 @@ export default function DashboardScreen() {
 												<Text className="text-white text-[11px]">✓</Text>
 											</View>
 											<Text className="text-sm font-nunito text-gray-400 line-through flex-1">
-												{task.name}
+												{task.task.name}
 											</Text>
 										</View>
 									))}
@@ -368,19 +369,28 @@ function TaskRow({ task }: { task: Task }) {
 				</Text>
 				<View className="flex-row items-center gap-3">
 					<View className="flex-row items-center gap-1">
-						<Clock size={13} color="#EF4444" />
-						<Text className="text-xs font-nunito text-red-500">
-							{task.due_time ?? "Hoy"}
-						</Text>
+						{
+							!task.due_time ?
+								(
+									<>
+
+										<Clock size={13} color="#EF4444" />
+										<Text className="text-xs font-nunito text-red-500">
+											{task.due_time ?? "Sin hora"}
+										</Text>
+									</>
+								)
+								:
+								(
+									<>
+										<Calendar1 size={13} color="#6B7280" />
+										<Text className="text-xs font-nunito text-gray-400">
+											{task.due_date}
+										</Text>
+									</>
+								)
+						}
 					</View>
-					{/* {task.responsible_name && (
-						<View className="flex-row items-center gap-1">
-							<UserIcon size={13} color="#6B7280" />
-							<Text className="text-xs font-nunito text-gray-500">
-								{task.responsible_name}
-							</Text>
-						</View>
-					)} */}
 				</View>
 			</View>
 		</View>

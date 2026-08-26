@@ -5,7 +5,7 @@ import { Pressable, Text, View } from "react-native";
 import type {
 	PreferenceValue,
 	TaskPreference,
-} from "@/mocks/mock-task-preferences";
+} from "@/constants/types";
 
 const BLUE = "#3A63FA";
 

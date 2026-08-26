@@ -28,7 +28,6 @@ import { TaskCard, type TaskCardModel } from "@/components/tasks/task-card";
 import { TaskSection } from "@/components/tasks/task-section";
 import { BACKGROUND, BLUE } from "@/constants/colors";
 import { HouseholdMember } from "@/constants/types";
-import { useAuthStore } from "@/store/auth-store";
 import { useHomeStore } from "@/store/home-store";
 
 // LayoutAnimation (used by the collapsible sections) needs to be enabled on Android.
@@ -76,7 +75,6 @@ export default function TasksScreen() {
 	const router = useRouter();
 	const { householdIdSelected } = useHomeStore();
 	const refreshKey = useHomeStore((s) => s.refreshKey);
-	const { user } = useAuthStore();
 
 	const [tasks, setTasks] = useState<ApiTask[]>([]);
 	const [members, setMembers] = useState<HouseholdMember[]>([]);
@@ -300,9 +298,6 @@ export default function TasksScreen() {
 
 		performAssignAll();
 	}, [householdIdSelected, isAssigning, tasks, performAssignAll]);
-
-	const userInitials =
-		`${user?.name?.[0] ?? ""}${user?.paternal_surname?.[0] ?? ""}`.toUpperCase();
 
 	const pendingCount = hoy.length + proximas.length;
 

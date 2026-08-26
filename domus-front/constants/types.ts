@@ -1,7 +1,10 @@
+import { type LucideIcon } from "lucide-react-native";
+
 export type Task = {
-id: number;
+	id: number;
 	name: string;
 	due_time?: string | null;
+	due_date: Date;
 	responsible_name?: string | null;
 	room?: string | null;
 	is_completed: boolean;
@@ -68,4 +71,15 @@ export type Preference = {
 export type PreferencePayloadItem = {
 	task_id: string;
 	score: number;
+};
+
+export type PreferenceValue = "neutral" | "like" | "dislike";
+
+export type TaskPreference = {
+	id: string;
+	name: string;
+	icon: LucideIcon;
+	tint: string;
+	iconColor: string;
+	value: PreferenceValue;
 };

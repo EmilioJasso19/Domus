@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import React, { useMemo,useState } from 'react';
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
   ScrollView,
   Text,

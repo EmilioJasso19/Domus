@@ -12,8 +12,7 @@ import {
 import { getPreferences, saveManyPreferences } from "@/api/preferences";
 import { TaskPreferenceRow } from "@/components/profile/task-preference-row";
 import { BACKGROUND, BLUE } from "@/constants/colors";
-import { Preference } from "@/constants/types";
-import type { PreferenceValue } from "@/mocks/mock-task-preferences";
+import { Preference, PreferenceValue } from "@/constants/types";
 import { useHomeStore } from "@/store/home-store";
 
 // El backend trabaja con un score numérico (-1 = like / 0 = neutral / 1 = dislike);

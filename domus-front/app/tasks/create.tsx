@@ -1,5 +1,5 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useLocalSearchParams,useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import {
 	ArrowLeft,
 	Calendar as CalendarIcon,
@@ -33,6 +33,7 @@ import {
 } from "@/api/tasks";
 import { BLUE as APP_BLUE } from "@/constants/colors";
 import { useHomeStore } from "@/store/home-store";
+import { getLocalTimeZone } from "@/utils";
 
 if (
 	Platform.OS === "android" &&
@@ -254,7 +255,7 @@ export default function CreateTask() {
 						keyboardShouldPersistTaps="handled"
 						showsVerticalScrollIndicator={false}
 					>
-						{/* ── Nombre (input grande sin borde, como la referencia) ── */}
+						{/* Nombre */}
 						<TextInput
 							value={name}
 							onChangeText={setName}
@@ -266,7 +267,7 @@ export default function CreateTask() {
 							style={nameFocused ? { borderBottomColor: FOCUS_BLUE } : undefined}
 						/>
 
-						{/* ── Fecha límite (acordeón con calendario) ── */}
+						{/* Fecha límite */}
 						<Text className="text-sm font-nunito-bold text-gray-700 mb-2">
 							Fecha límite
 						</Text>
@@ -300,7 +301,9 @@ export default function CreateTask() {
 											? { [dueDate]: { selected: true, selectedColor: BLUE } }
 											: {}
 									}
-									minDate={new Date().toISOString().split("T")[0]}
+									minDate={new Date().toLocaleDateString("en-CA", {
+										timeZone: getLocalTimeZone(),
+									})}
 									theme={{
 										todayTextColor: BLUE,
 										selectedDayBackgroundColor: BLUE,

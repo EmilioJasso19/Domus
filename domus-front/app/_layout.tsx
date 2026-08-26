@@ -29,7 +29,6 @@ function RootLayoutNav() {
 	const segments = useSegments();
 	const router = useRouter()
 	const navigationState = useRootNavigationState();
-	const { households, householdIdSelected } = useHomeStore();
 
 	useEffect(() => {
 		loadToken();
@@ -71,7 +70,7 @@ function RootLayoutNav() {
 				router.replace("/home");
 			}
 		}
-	}, [navigationState?.key, token, segments, isHydrated]);
+	}, [navigationState?.key, token, segments, isHydrated, router]);
 
 	return (
 		// <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
