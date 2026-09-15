@@ -9,6 +9,7 @@ import { UserHomeRole } from '@/user-home-role/entities/user-home-role.entity';
 import { Home } from '@/home/entities/home.entity';
 import { Task } from '@/tasks/entities/task.entity';
 import { DeviceTokens } from '@/device-tokens/entities/device-tokens.entity';
+import { RefreshToken } from '@/auth/entities/refresh-token.entity';
 import { RoleName } from '@/role/constants/roles.constants';
 
 jest.mock('argon2');
@@ -212,6 +213,14 @@ describe('UsersService', () => {
       await service.removeMe('1');
 
       expect(mockEntityManager.delete).toHaveBeenCalledWith(DeviceTokens, {
+        user_id: '1',
+      });
+    });
+
+    it('elimina los refresh tokens del usuario', async () => {
+      await service.removeMe('1');
+
+      expect(mockEntityManager.delete).toHaveBeenCalledWith(RefreshToken, {
         user_id: '1',
       });
     });

@@ -24,7 +24,11 @@ function getThrottleLimits(method: (...args: unknown[]) => unknown) {
 const mockAuthService = {
   signIn: jest.fn(),
   signUp: jest.fn(),
+  refreshTokens: jest.fn(),
+  logout: jest.fn(),
 };
+
+const mockAuthUser = { id: '1', email: 'emilio@example.com' };
 
 const signUpDto = {
   name: 'Emilio',
@@ -187,5 +191,43 @@ describe('AuthController', () => {
       expect(ttl).toBe(60000);
     });
     /* eslint-enable @typescript-eslint/unbound-method */
+  });
+
+  describe('POST /auth/refresh', () => {
+    it('delega en authService.refreshTokens con el token del body', async () => {
+      const tokens = {
+        access_token: 'new_access',
+        refresh_token: 'new_refresh',
+      };
+      mockAuthService.refreshTokens.mockResolvedValue(tokens);
+
+      const result = await controller.refresh({
+        refresh_token: 'old_refresh',
+      } as any);
+
+      expect(mockAuthService.refreshTokens).toHaveBeenCalledWith('old_refresh');
+      expect(result).toEqual(tokens);
+    });
+
+    it('retorna 401 si el service lanza UnauthorizedException', async () => {
+      mockAuthService.refreshTokens.mockRejectedValue(
+        new UnauthorizedException('Refresh token inválido'),
+      );
+
+      await expect(
+        controller.refresh({ refresh_token: 'malo' } as any),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  describe('POST /auth/logout', () => {
+    it('delega en authService.logout con el userId del token', async () => {
+      mockAuthService.logout.mockResolvedValue({ message: 'Sesión cerrada' });
+
+      const result = await controller.logout(mockAuthUser as any);
+
+      expect(mockAuthService.logout).toHaveBeenCalledWith('1');
+      expect(result).toEqual({ message: 'Sesión cerrada' });
+    });
   });
 });

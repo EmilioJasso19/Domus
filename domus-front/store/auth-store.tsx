@@ -97,8 +97,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 		try {
 			const response = await axios.post("/auth/login", data);
 
-			const { access_token, user, households } = response.data;
+			const { access_token, refresh_token, user, households } = response.data;
 			await SecureStore.setItemAsync("token", access_token);
+			await SecureStore.setItemAsync("refresh_token", refresh_token);
 			await AsyncStorage.setItem("user", JSON.stringify(user));
 			set({ token: access_token, user });
 
@@ -142,8 +143,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 				throw new Error(err.message || "Error al registrar");
 			}
 
-			const { access_token: token, user } = await response.data;
+			const { access_token: token, refresh_token, user } = await response.data;
 			await SecureStore.setItemAsync("token", token);
+			await SecureStore.setItemAsync("refresh_token", refresh_token);
 			await AsyncStorage.setItem("user", JSON.stringify(user));
 			set({ token, user });
 
@@ -173,10 +175,26 @@ export const useAuthStore = create<AuthState>((set) => ({
 			),
 		]);
 
+		// Invalida el refresh token en el servidor para que no pueda reusarse.
+		// Mismo tope de tiempo que el desregistro de push: sin red no debe
+		// bloquear el cierre de sesión local (el refresh token huérfano
+		// simplemente expira solo, y el cron diario lo limpia).
+		try {
+			await Promise.race([
+				axios.post("/auth/logout"),
+				new Promise((resolve) =>
+					setTimeout(resolve, LOGOUT_UNREGISTER_TIMEOUT_MS),
+				),
+			]);
+		} catch {
+			// Falla en silencio: no es crítico para el cierre de sesión local.
+		}
+
 		// El estado local se limpia pase lo que pase: dejar la sesión a medias sería
 		// peor que no haber podido desregistrar el token.
 		try {
 			await SecureStore.deleteItemAsync("token");
+			await SecureStore.deleteItemAsync("refresh_token");
 			await AsyncStorage.removeItem("user");
 			await useHomeStore.getState().clearHouseholds();
 		} catch (e) {

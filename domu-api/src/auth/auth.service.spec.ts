@@ -1,8 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { UsersService } from '@/users/users.service';
 import { UserHomeRoleService } from '@/user-home-role/user-home-role.service';
 import { JwtService } from '@nestjs/jwt';
+import { RefreshToken } from './entities/refresh-token.entity';
 import {
   UnauthorizedException,
   ConflictException,
@@ -23,6 +25,7 @@ const mockUser = {
 const mockUsersService = {
   findByEmail: jest.fn(),
   create: jest.fn(),
+  findOne: jest.fn(),
 };
 
 const mockJwtService = {
@@ -32,6 +35,13 @@ const mockJwtService = {
 // signIn() consulta los hogares del usuario; por defecto devolvemos lista vacía.
 const mockUserHomeRoleService = {
   findAll: jest.fn().mockResolvedValue([]),
+};
+
+const mockRefreshTokenRepository = {
+  create: jest.fn((data: any) => data),
+  save: jest.fn(),
+  findOneBy: jest.fn(),
+  delete: jest.fn(),
 };
 
 describe('AuthService', () => {
@@ -44,12 +54,18 @@ describe('AuthService', () => {
         { provide: UsersService, useValue: mockUsersService },
         { provide: JwtService, useValue: mockJwtService },
         { provide: UserHomeRoleService, useValue: mockUserHomeRoleService },
+        {
+          provide: getRepositoryToken(RefreshToken),
+          useValue: mockRefreshTokenRepository,
+        },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
 
     jest.clearAllMocks();
+    mockRefreshTokenRepository.create.mockImplementation((data: any) => data);
+    mockRefreshTokenRepository.save.mockResolvedValue({});
   });
 
   it('should be defined', () => {
@@ -58,7 +74,7 @@ describe('AuthService', () => {
 
   // C01 – Registro exitoso
   describe('C01 - Registro exitoso', () => {
-    it('debe retornar access_token y objeto user sin la contraseña (HTTP 201)', async () => {
+    it('debe retornar access_token, refresh_token y objeto user sin la contraseña (HTTP 201)', async () => {
       mockUsersService.create.mockResolvedValue(mockUser);
 
       const signUpDto = {
@@ -72,6 +88,8 @@ describe('AuthService', () => {
 
       expect(mockUsersService.create).toHaveBeenCalledWith(signUpDto);
       expect(result).toHaveProperty('access_token', 'mock_jwt_token');
+      expect(result).toHaveProperty('refresh_token');
+      expect(typeof result.refresh_token).toBe('string');
       expect(result).toHaveProperty('user');
       expect(result.user).toMatchObject({
         id: mockUser.id,
@@ -80,6 +98,7 @@ describe('AuthService', () => {
       });
       // La contraseña NO debe estar en la respuesta
       expect(result.user).not.toHaveProperty('password');
+      expect(mockRefreshTokenRepository.save).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -187,7 +206,7 @@ describe('AuthService', () => {
 
   // C04 – Inicio de sesión con credenciales correctas
   describe('C04 - Inicio de sesión con credenciales correctas', () => {
-    it('debe retornar access_token y objeto user (HTTP 200)', async () => {
+    it('debe retornar access_token, refresh_token y objeto user (HTTP 200)', async () => {
       mockUsersService.findByEmail.mockResolvedValue(mockUser);
       (argon2.verify as jest.Mock).mockResolvedValue(true);
 
@@ -206,11 +225,14 @@ describe('AuthService', () => {
         signInDto.password,
       );
       expect(result).toHaveProperty('access_token', 'mock_jwt_token');
+      expect(result).toHaveProperty('refresh_token');
+      expect(typeof result.refresh_token).toBe('string');
       expect(result).toHaveProperty('user');
       expect(result.user).toMatchObject({
         id: mockUser.id,
         email: mockUser.email,
       });
+      expect(mockRefreshTokenRepository.save).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -249,6 +271,90 @@ describe('AuthService', () => {
           password: 'Incorrecto#9',
         }),
       ).rejects.toThrow(/credenciales/i);
+    });
+  });
+
+  describe('refreshTokens', () => {
+    const storedToken = {
+      id: '50',
+      token_hash: 'any-hash',
+      user_id: '1',
+      expires_at: new Date(Date.now() + 60 * 60 * 1000), // +1h, vigente
+    };
+
+    it('con token válido retorna un nuevo par de tokens', async () => {
+      mockRefreshTokenRepository.findOneBy.mockResolvedValue(storedToken);
+      mockRefreshTokenRepository.delete.mockResolvedValue({ affected: 1 });
+      mockUsersService.findOne.mockResolvedValue(mockUser);
+
+      const result = await service.refreshTokens('some-raw-refresh-token');
+
+      expect(result).toHaveProperty('access_token', 'mock_jwt_token');
+      expect(result).toHaveProperty('refresh_token');
+      expect(typeof result.refresh_token).toBe('string');
+    });
+
+    it('con token inválido lanza UnauthorizedException', async () => {
+      mockRefreshTokenRepository.findOneBy.mockResolvedValue(null);
+
+      await expect(service.refreshTokens('no-existe')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('con token expirado lanza UnauthorizedException', async () => {
+      mockRefreshTokenRepository.findOneBy.mockResolvedValue({
+        ...storedToken,
+        expires_at: new Date(Date.now() - 60 * 1000), // -1min, ya expiró
+      });
+      mockRefreshTokenRepository.delete.mockResolvedValue({ affected: 1 });
+
+      await expect(service.refreshTokens('expirado')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+
+    it('rota el token: elimina el usado antes de emitir uno nuevo', async () => {
+      mockRefreshTokenRepository.findOneBy.mockResolvedValue(storedToken);
+      mockRefreshTokenRepository.delete.mockResolvedValue({ affected: 1 });
+      mockUsersService.findOne.mockResolvedValue(mockUser);
+
+      await service.refreshTokens('some-raw-refresh-token');
+
+      expect(mockRefreshTokenRepository.delete).toHaveBeenCalledWith({
+        id: storedToken.id,
+      });
+      expect(mockRefreshTokenRepository.save).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('logout', () => {
+    it('elimina todos los refresh tokens del usuario', async () => {
+      mockRefreshTokenRepository.delete.mockResolvedValue({ affected: 2 });
+
+      await service.logout('1');
+
+      expect(mockRefreshTokenRepository.delete).toHaveBeenCalledWith({
+        user_id: '1',
+      });
+    });
+
+    it('es idempotente cuando el usuario no tiene tokens', async () => {
+      mockRefreshTokenRepository.delete.mockResolvedValue({ affected: 0 });
+
+      await expect(service.logout('1')).resolves.not.toThrow();
+    });
+  });
+
+  describe('purgeExpiredRefreshTokens', () => {
+    it('elimina solo los refresh tokens expirados', async () => {
+      mockRefreshTokenRepository.delete.mockResolvedValue({ affected: 3 });
+
+      await service.purgeExpiredRefreshTokens();
+
+      expect(mockRefreshTokenRepository.delete).toHaveBeenCalledWith({
+        expires_at: expect.objectContaining({ type: 'lessThan' }),
+      });
     });
   });
 });

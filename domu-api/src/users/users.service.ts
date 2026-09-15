@@ -15,6 +15,7 @@ import { UserHomeRole } from '@/user-home-role/entities/user-home-role.entity';
 import { Home } from '@/home/entities/home.entity';
 import { Task } from '@/tasks/entities/task.entity';
 import { DeviceTokens } from '@/device-tokens/entities/device-tokens.entity';
+import { RefreshToken } from '@/auth/entities/refresh-token.entity';
 import { RoleName } from '@/role/constants/roles.constants';
 
 @Injectable()
@@ -161,6 +162,7 @@ export class UsersService {
 
       await manager.delete(UserHomeRole, { user_id: userId });
       await manager.delete(DeviceTokens, { user_id: userId });
+      await manager.delete(RefreshToken, { user_id: userId });
 
       await manager.update(User, userId, {
         name: 'Usuario',

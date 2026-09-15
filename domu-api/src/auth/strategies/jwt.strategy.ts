@@ -19,11 +19,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
-    const user = await this.usersService.findOne(payload.sub);
-
-    if (!user) {
+    try {
+      const user = await this.usersService.findOne(payload.sub);
+      return { id: user.id, email: user.email };
+    } catch {
+      // usersService.findOne lanza NotFoundException si el usuario ya no
+      // existe — un guard debe responder 401, no dejar filtrar un 404.
       throw new UnauthorizedException();
     }
-    return { id: user.id, email: user.email };
   }
 }
