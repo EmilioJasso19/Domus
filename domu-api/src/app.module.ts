@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './users/users.module';
 import { join } from 'path';
@@ -26,6 +28,9 @@ import { PushNotificationsModule } from './push-notifications/push-notifications
     ConfigModule.forRoot(),
     DiscordModule,
     ScheduleModule.forRoot(),
+    // Límite global por defecto (60/min por IP); auth.controller.ts define
+    // límites más estrictos para login/register con @Throttle().
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 60 }]),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',
@@ -55,6 +60,6 @@ import { PushNotificationsModule } from './push-notifications/push-notifications
     PushNotificationsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

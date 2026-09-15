@@ -6,6 +6,20 @@ import {
   BadRequestException,
   UnauthorizedException,
 } from '@nestjs/common';
+// @Throttle({ default: { limit, ttl } }) escribe la metadata sobre el método
+// (Reflect.defineMetadata(..., descriptor.value)) bajo estas keys — no están
+// exportadas en el índice público del paquete, así que se usan literales
+// (ver node_modules/@nestjs/throttler/dist/throttler.constants.js).
+function getThrottleLimits(method: (...args: unknown[]) => unknown) {
+  return {
+    limit: Reflect.getMetadata('THROTTLER:LIMITdefault', method) as
+      | number
+      | undefined,
+    ttl: Reflect.getMetadata('THROTTLER:TTLdefault', method) as
+      | number
+      | undefined,
+  };
+}
 
 const mockAuthService = {
   signIn: jest.fn(),
@@ -153,5 +167,25 @@ describe('AuthController', () => {
         UnauthorizedException,
       );
     });
+  });
+
+  describe('Rate limiting', () => {
+    // Se necesita la referencia "desatada" al método (no invocarlo) para leer
+    // la metadata que @Throttle() dejó en la función — no hay `this` en juego.
+    /* eslint-disable @typescript-eslint/unbound-method */
+    it('Login tiene @Throttle con limit 5 y ttl 60000', () => {
+      const { limit, ttl } = getThrottleLimits(AuthController.prototype.signIn);
+
+      expect(limit).toBe(5);
+      expect(ttl).toBe(60000);
+    });
+
+    it('Register tiene @Throttle con limit 3 y ttl 60000', () => {
+      const { limit, ttl } = getThrottleLimits(AuthController.prototype.signUp);
+
+      expect(limit).toBe(3);
+      expect(ttl).toBe(60000);
+    });
+    /* eslint-enable @typescript-eslint/unbound-method */
   });
 });
