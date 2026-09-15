@@ -1,7 +1,7 @@
 import {
-  BadRequestException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { CreateVirtualPetDto } from './dto/create-virtual-pet.dto';
 import { UpdateVirtualPetDto } from './dto/update-virtual-pet.dto';
@@ -20,13 +20,34 @@ export class VirtualPetService {
     private readonly usersService: UsersService,
     private readonly uhrService: UserHomeRoleService,
   ) {}
-  create(createVirtualPetDto: CreateVirtualPetDto) {
+  async create(createVirtualPetDto: CreateVirtualPetDto, authUser: User) {
+    const membership = await this.uhrService.exists({
+      user_id: authUser.id,
+      home_id: createVirtualPetDto.home_id,
+    });
+    if (!membership) {
+      throw new ForbiddenException('No perteneces a este hogar');
+    }
+
     const pet = this.petRepository.create(createVirtualPetDto);
     return this.petRepository.save(pet);
   }
 
-  findOne(id: string) {
-    return this.petRepository.findOneByOrFail({ home_id: id });
+  async findOne(id: string, authUser: User) {
+    const pet = await this.petRepository.findOneBy({ home_id: id });
+    if (!pet) {
+      throw new NotFoundException('Mascota no encontrada');
+    }
+
+    const membership = await this.uhrService.exists({
+      user_id: authUser.id,
+      home_id: id,
+    });
+    if (!membership) {
+      throw new ForbiddenException('No perteneces a este hogar');
+    }
+
+    return pet;
   }
 
   async update(id: string, dto: UpdateVirtualPetDto, authUser: User) {
