@@ -42,7 +42,7 @@ import { PushNotificationsModule } from './push-notifications/push-notifications
       synchronize: false,
       migrations: [join(process.cwd(), 'dist/database/migrations/*.js')],
       migrationsRun: process.env.NODE_ENV === 'production',
-      logging: true,
+      logging: process.env.NODE_ENV !== 'production',
     }),
     UsersModule,
     TasksModule,

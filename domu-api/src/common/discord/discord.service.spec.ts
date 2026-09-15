@@ -63,4 +63,91 @@ describe('DiscordService', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  describe('sanitización de datos personales', () => {
+    beforeEach(() => {
+      process.env.DISCORD_WEBHOOK_URL = WEBHOOK_URL;
+    });
+
+    it('sanitiza emails del título y del contexto', async () => {
+      await service.sendError({
+        title: 'Fallo al procesar a user@email.com',
+        context: 'Reclamo de otro@dominio.com en RemindersService',
+      });
+
+      const [, init] = fetchMock.mock.calls[0];
+      const embed = JSON.parse(init.body).embeds[0];
+      const contextField = embed.fields.find((f: any) => f.name === 'Context');
+
+      expect(embed.title).not.toContain('user@email.com');
+      expect(embed.title).toContain('[EMAIL]');
+      expect(contextField.value).not.toContain('otro@dominio.com');
+      expect(contextField.value).toContain('[EMAIL]');
+    });
+
+    it('sanitiza IDs numéricos largos (más de 6 dígitos)', async () => {
+      await service.sendError({
+        title: 'Error con el usuario 1234567890',
+        context: 'home_id=9876543210',
+      });
+
+      const [, init] = fetchMock.mock.calls[0];
+      const embed = JSON.parse(init.body).embeds[0];
+      const contextField = embed.fields.find((f: any) => f.name === 'Context');
+
+      expect(embed.title).not.toContain('1234567890');
+      expect(embed.title).toContain('[ID]');
+      expect(contextField.value).not.toContain('9876543210');
+      expect(contextField.value).toContain('[ID]');
+    });
+
+    it('no toca números cortos (≤6 dígitos), como códigos de error', async () => {
+      await service.sendError({ title: 'HTTP 404 al buscar el recurso' });
+
+      const [, init] = fetchMock.mock.calls[0];
+      const embed = JSON.parse(init.body).embeds[0];
+
+      expect(embed.title).toContain('404');
+    });
+
+    it('no envía el campo Stack en producción', async () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      try {
+        await service.sendError({
+          title: 'Failed sending reminder',
+          stack: 'Error: nope\n  at foo (bar.ts:1:1)',
+        });
+
+        const [, init] = fetchMock.mock.calls[0];
+        const embed = JSON.parse(init.body).embeds[0];
+        const fieldNames = embed.fields.map((f: any) => f.name);
+
+        expect(fieldNames).not.toContain('Stack');
+      } finally {
+        process.env.NODE_ENV = originalEnv;
+      }
+    });
+
+    it('sí envía el campo Stack fuera de producción', async () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
+
+      try {
+        await service.sendError({
+          title: 'Failed sending reminder',
+          stack: 'Error: nope\n  at foo (bar.ts:1:1)',
+        });
+
+        const [, init] = fetchMock.mock.calls[0];
+        const embed = JSON.parse(init.body).embeds[0];
+        const fieldNames = embed.fields.map((f: any) => f.name);
+
+        expect(fieldNames).toContain('Stack');
+      } finally {
+        process.env.NODE_ENV = originalEnv;
+      }
+    });
+  });
 });

@@ -59,12 +59,15 @@ export class DiscordService {
     if (payload.context) {
       fields.push({
         name: 'Context',
-        value: truncate(payload.context, MAX_FIELD),
+        value: truncate(sanitize(payload.context), MAX_FIELD),
         inline: true,
       });
     }
     fields.push(...(payload.fields ?? []));
-    if (payload.stack) {
+    // El stack puede contener rutas locales, nombres de variables o fragmentos
+    // de datos de la petición que originó el error — en producción es preferible
+    // no reenviarlo a un tercero (Discord).
+    if (payload.stack && process.env.NODE_ENV !== 'production') {
       fields.push({
         name: 'Stack',
         value: codeBlock(truncate(payload.stack, MAX_FIELD - 12)),
@@ -72,9 +75,9 @@ export class DiscordService {
     }
 
     const embed = {
-      title: truncate(`🔴 ${payload.title}`, MAX_TITLE),
+      title: truncate(`🔴 ${sanitize(payload.title)}`, MAX_TITLE),
       description: payload.description
-        ? truncate(payload.description, MAX_DESC)
+        ? truncate(sanitize(payload.description), MAX_DESC)
         : undefined,
       color: DISCORD_RED,
       timestamp: new Date().toISOString(),
@@ -97,6 +100,18 @@ export class DiscordService {
       console.error('[discord] no se pudo enviar el webhook:', err);
     }
   }
+}
+
+const EMAIL_PATTERN = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+// >6 dígitos: cubre ids bigint de la app sin tocar códigos HTTP, años, etc.
+const LONG_NUMERIC_ID_PATTERN = /\d{7,}/g;
+
+// Redacta datos personales/identificables antes de mandar el error a Discord
+// (un canal fuera del control de la app): emails e ids numéricos largos.
+function sanitize(value: string): string {
+  return value
+    .replace(EMAIL_PATTERN, '[EMAIL]')
+    .replace(LONG_NUMERIC_ID_PATTERN, '[ID]');
 }
 
 function truncate(value: string, max: number): string {

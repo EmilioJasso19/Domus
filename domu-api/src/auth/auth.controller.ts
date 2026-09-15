@@ -17,7 +17,7 @@ import type { AuthenticatedUser } from './decorators/auth-user.decorators';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
@@ -36,21 +36,13 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
   refresh(@Body() refreshDto: RefreshDto) {
-    const refreshTokens = this.authService.refreshTokens as (
-      refreshToken: string,
-    ) => Promise<unknown>;
-
-    return refreshTokens(refreshDto.refresh_token);
+    return this.authService.refreshTokens(refreshDto.refresh_token);
   }
 
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   logout(@AuthUser() user: AuthenticatedUser) {
-    const logout = this.authService.logout as (
-      userId: string,
-    ) => Promise<unknown>;
-
-    return logout(user.id);
+    return this.authService.logout(user.id);
   }
 }
