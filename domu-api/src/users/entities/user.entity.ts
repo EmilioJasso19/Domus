@@ -3,8 +3,6 @@ import {
   Column,
   PrimaryGeneratedColumn,
   DeleteDateColumn,
-  ManyToOne,
-  JoinColumn,
 } from 'typeorm';
 
 @Entity({ name: 'users' })

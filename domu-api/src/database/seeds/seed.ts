@@ -1,14 +1,18 @@
 import { AppDataSource } from '../data-source';
 import { Role } from '@/role/entities/role.entity';
+import { RoleName } from '@/role/constants/roles.constants';
 
 async function runSeed() {
   await AppDataSource.initialize();
   const roleRepo = AppDataSource.getRepository(Role);
 
   const roles = [
-    { name: 'OWNER', description: 'Administrador del hogar' },
-    { name: 'MEMBER', description: 'Miembro del hogar' },
-    { name: 'GUEST', description: 'Usuario no perteneciente a un hogar' },
+    { name: RoleName.OWNER, description: 'Administrador del hogar' },
+    { name: RoleName.MEMBER, description: 'Miembro del hogar' },
+    {
+      name: RoleName.GUEST,
+      description: 'Usuario no perteneciente a un hogar',
+    },
   ];
 
   for (const role of roles) {

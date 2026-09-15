@@ -323,14 +323,16 @@ export class HomeService {
     if (
       home.createdBy.id === userId &&
       authUser.id !== userId &&
-      roleName !== RoleName.OWNER
+      (roleName as RoleName) !== RoleName.OWNER
     ) {
       throw new ForbiddenException(
         'Solo el dueño original puede degradarse a sí mismo',
       );
     }
 
-    const role = await this.roleService.findOneBy({ name: roleName });
+    const role = await this.roleService.findOneBy({
+      name: roleName as RoleName,
+    });
     if (!role) {
       throw new NotFoundException('Rol no encontrado');
     }
