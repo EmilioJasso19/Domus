@@ -14,6 +14,7 @@ import { UpdateHomeDto } from './dto/update-home.dto';
 import { JoinHomeDto } from './dto/join-home.dto';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { AuthUser } from '@/auth/decorators/auth-user.decorators';
+import { User } from '@/users/entities/user.entity';
 
 @Controller('homes')
 @UseGuards(JwtAuthGuard)
@@ -21,37 +22,37 @@ export class HomeController {
   constructor(private readonly homeService: HomeService) {}
 
   @Post()
-  create(@Body() createHomeDto: CreateHomeDto, @AuthUser() user) {
+  create(@Body() createHomeDto: CreateHomeDto, @AuthUser() user: User) {
     return this.homeService.create(createHomeDto, user);
   }
 
   @Post('join')
-  join(@Body() joinHomeDto: JoinHomeDto, @AuthUser() user) {
+  join(@Body() joinHomeDto: JoinHomeDto, @AuthUser() user: User) {
     return this.homeService.join(joinHomeDto, user);
   }
 
   @Post(':id/leave')
-  leave(@Param('id') id: string, @AuthUser() user) {
+  leave(@Param('id') id: string, @AuthUser() user: User) {
     return this.homeService.leave(id, user);
   }
 
   @Get('/me')
-  findAll(@AuthUser() user) {
+  findAll(@AuthUser() user: User) {
     return this.homeService.findAll(user);
   }
 
   @Get('members/:id')
-  findMembers(@Param('id') id: string, @AuthUser() user) {
+  findMembers(@Param('id') id: string, @AuthUser() user: User) {
     return this.homeService.findMembers(id, user);
   }
 
   @Get(':id/activity')
-  findRecentActivity(@Param('id') id: string, @AuthUser() user) {
+  findRecentActivity(@Param('id') id: string, @AuthUser() user: User) {
     return this.homeService.findRecentActivity(id, user);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @AuthUser() user) {
+  findOne(@Param('id') id: string, @AuthUser() user: User) {
     return this.homeService.findOne(id, user);
   }
 
@@ -60,7 +61,7 @@ export class HomeController {
     @Param('homeId') homeId: string,
     @Param('userId') userId: string,
     @Body('role') role: string,
-    @AuthUser() user,
+    @AuthUser() user: User,
   ) {
     return this.homeService.updateMemberRole(homeId, userId, role, user);
   }
@@ -69,7 +70,7 @@ export class HomeController {
   async update(
     @Param('id') id: string,
     @Body() updateHomeDto: UpdateHomeDto,
-    @AuthUser() user,
+    @AuthUser() user: User,
   ) {
     return this.homeService.update(id, updateHomeDto, user);
   }
@@ -78,18 +79,18 @@ export class HomeController {
   expelMember(
     @Param('homeId') homeId: string,
     @Param('userId') userId: string,
-    @AuthUser() user,
+    @AuthUser() user: User,
   ) {
     return this.homeService.expelMember(homeId, userId, user);
   }
 
   @Post(':id/regenerate-code')
-  regenerateCode(@Param('id') id: string, @AuthUser() user) {
+  regenerateCode(@Param('id') id: string, @AuthUser() user: User) {
     return this.homeService.regenerateCode(id, user);
   }
 
   @Delete(':id')
-  async remove(@AuthUser() user, @Param('id') id: string) {
+  async remove(@AuthUser() user: User, @Param('id') id: string) {
     return this.homeService.remove(id, user);
   }
 }

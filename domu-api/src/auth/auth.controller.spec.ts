@@ -39,9 +39,7 @@ describe('AuthController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [
-        { provide: AuthService, useValue: mockAuthService },
-      ],
+      providers: [{ provide: AuthService, useValue: mockAuthService }],
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
@@ -53,7 +51,6 @@ describe('AuthController', () => {
   });
 
   describe('POST /auth/register – signUp()', () => {
-
     // C01 – Registro exitoso
     it('C01: debe llamar a authService.signUp y retornar access_token y user', async () => {
       mockAuthService.signUp.mockResolvedValue(authResponse);
@@ -121,7 +118,6 @@ describe('AuthController', () => {
   // ───────────────────────────────────────────────────────────────────────────
 
   describe('POST /auth/login – signIn()', () => {
-
     // C04 – Credenciales correctas
     it('C04: debe llamar a authService.signIn y retornar access_token', async () => {
       mockAuthService.signIn.mockResolvedValue(authResponse);

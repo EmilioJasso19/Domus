@@ -1,7 +1,6 @@
 import {
   Injectable,
   NotFoundException,
-  BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
 import { CreatePreferenceDto } from './dto/create-preference.dto';
@@ -9,7 +8,6 @@ import { User } from '@/users/entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Preference } from './entities/preference.entity';
 import { Repository } from 'typeorm';
-import { UsersService } from '@/users/users.service';
 import { TasksService } from '@/tasks/tasks.service';
 import { UserHomeRoleService } from '@/user-home-role/user-home-role.service';
 import { SavePreferencesDto } from './dto/save-preference-dto';

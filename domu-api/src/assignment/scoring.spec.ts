@@ -26,11 +26,7 @@
  * continuando la numeración tras el módulo de horarios que terminó en C38).
  */
 import { compositeCost, selectAssignee, ScoringContext } from './scoring';
-import {
-  MemberSnapshot,
-  AssignmentWeights,
-  DEFAULT_WEIGHTS,
-} from './assignment.types';
+import { MemberSnapshot } from './assignment.types';
 
 const member = (over: Partial<MemberSnapshot> = {}): MemberSnapshot => ({
   userId: '1',

@@ -1,13 +1,6 @@
 import { Task } from '@/tasks/entities/task.entity';
 import { User } from '@/users/entities/user.entity';
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryColumn,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 
 @Entity({ name: 'preferences' })
 export class Preference {

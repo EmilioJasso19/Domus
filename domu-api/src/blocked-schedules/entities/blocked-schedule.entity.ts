@@ -1,5 +1,3 @@
-import { Home } from '@/home/entities/home.entity';
-import { User } from '@/users/entities/user.entity';
 import {
   ManyToOne,
   PrimaryGeneratedColumn,

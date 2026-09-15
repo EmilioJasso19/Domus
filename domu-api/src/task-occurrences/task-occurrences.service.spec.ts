@@ -73,7 +73,9 @@ describe('TaskOccurrencesService', () => {
     it('marca completed_at, otorga puntos y genera la siguiente ocurrencia', async () => {
       const occ = buildOccurrence({ completed_at: null });
       mockOccurrenceRepository.findOne.mockResolvedValue(occ);
-      mockOccurrenceRepository.save.mockImplementation(async (o: any) => o);
+      mockOccurrenceRepository.save.mockImplementation((o: any) =>
+        Promise.resolve(o),
+      );
       const award = jest
         .spyOn(service as any, 'awardPoints')
         .mockResolvedValue(undefined);
@@ -92,7 +94,9 @@ describe('TaskOccurrencesService', () => {
     it('al desmarcar (toggle inverso) NO otorga puntos ni genera ocurrencia', async () => {
       const occ = buildOccurrence({ completed_at: new Date() });
       mockOccurrenceRepository.findOne.mockResolvedValue(occ);
-      mockOccurrenceRepository.save.mockImplementation(async (o: any) => o);
+      mockOccurrenceRepository.save.mockImplementation((o: any) =>
+        Promise.resolve(o),
+      );
       const award = jest
         .spyOn(service as any, 'awardPoints')
         .mockResolvedValue(undefined);
@@ -162,7 +166,9 @@ describe('TaskOccurrencesService', () => {
 
     it('persiste al responsable y notifica al nuevo asignado', async () => {
       const occ = assignedOcc();
-      mockOccurrenceRepository.save.mockImplementation(async (o: any) => o);
+      mockOccurrenceRepository.save.mockImplementation((o: any) =>
+        Promise.resolve(o),
+      );
       mockPushService.sendToUser.mockResolvedValue(undefined);
 
       await service.setResponsible(occ, 'u1');
@@ -179,7 +185,9 @@ describe('TaskOccurrencesService', () => {
 
     it('no re-notifica si el responsable no cambia', async () => {
       const occ = assignedOcc({ user_id: 'u1' });
-      mockOccurrenceRepository.save.mockImplementation(async (o: any) => o);
+      mockOccurrenceRepository.save.mockImplementation((o: any) =>
+        Promise.resolve(o),
+      );
 
       await service.setResponsible(occ, 'u1');
 
@@ -189,7 +197,9 @@ describe('TaskOccurrencesService', () => {
 
     it('no notifica cuando se desasigna (userId null)', async () => {
       const occ = assignedOcc({ user_id: 'u1' });
-      mockOccurrenceRepository.save.mockImplementation(async (o: any) => o);
+      mockOccurrenceRepository.save.mockImplementation((o: any) =>
+        Promise.resolve(o),
+      );
 
       await service.setResponsible(occ, null);
 

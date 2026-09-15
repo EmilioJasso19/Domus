@@ -60,7 +60,7 @@ describe('AssignmentService', () => {
     it('asigna y persiste al miembro de menor carga del hogar', async () => {
       occurrences.findOne.mockResolvedValue(occurrence());
       uhr.findAllByHome.mockResolvedValue([member('1'), member('2')]);
-      occurrences.sumActiveEffort.mockImplementation(async (userId: string) =>
+      occurrences.sumActiveEffort.mockImplementation((userId: string) =>
         userId === '2' ? 10 : 0,
       );
 
@@ -87,10 +87,10 @@ describe('AssignmentService', () => {
       occurrences.findOne.mockResolvedValue(occ);
       uhr.findAllByHome.mockResolvedValue([member('1'), member('2')]);
       // '2' tendría menor carga, pero está bloqueado a esa hora -> gana '1'.
-      occurrences.sumActiveEffort.mockImplementation(async (userId: string) =>
+      occurrences.sumActiveEffort.mockImplementation((userId: string) =>
         userId === '1' ? 100 : 0,
       );
-      blocked.findAll.mockImplementation(async (user: any) =>
+      blocked.findAll.mockImplementation((user: any) =>
         user.id === '2'
           ? [
               {
@@ -111,10 +111,10 @@ describe('AssignmentService', () => {
       const occ = occurrence({ due_date: '2026-06-20', due_time: null });
       occurrences.findOne.mockResolvedValue(occ);
       uhr.findAllByHome.mockResolvedValue([member('1'), member('2')]);
-      occurrences.sumActiveEffort.mockImplementation(async (userId: string) =>
+      occurrences.sumActiveEffort.mockImplementation((userId: string) =>
         userId === '1' ? 100 : 0,
       );
-      blocked.findAll.mockImplementation(async (user: any) =>
+      blocked.findAll.mockImplementation((user: any) =>
         user.id === '2'
           ? [
               {
@@ -157,8 +157,8 @@ describe('AssignmentService', () => {
       // Todo igual (carga 0, sin preferencias, sin historial) salvo que '1' ya hizo
       // esta tarea 3 veces. Sin el factor, el empate iría al menor userId ('1');
       // con el factor, gana '2'.
-      occurrences.countAssignmentsSince.mockImplementation(
-        async (userId: string) => (userId === '1' ? 3 : 0),
+      occurrences.countAssignmentsSince.mockImplementation((userId: string) =>
+        userId === '1' ? 3 : 0,
       );
 
       const result = await service.assignOccurrence('1');

@@ -6,7 +6,6 @@ import {
   JoinColumn,
   DeleteDateColumn,
 } from 'typeorm';
-import { User } from '@/users/entities/user.entity';
 import { FrequencyType } from '../enums/frequency-type.enum';
 import { Home } from '@/home/entities/home.entity';
 

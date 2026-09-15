@@ -12,6 +12,8 @@ export class DiscordLogger extends ConsoleLogger {
   }
 
   error(message: any, ...optionalParams: any[]): void {
+    // La firma de ConsoleLogger.error obliga a `any`/`any[]` aquí.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     super.error(message, ...optionalParams);
 
     // Los Logger de Nest delegan como error(message, stack?, context?). El stack
@@ -27,15 +29,19 @@ export class DiscordLogger extends ConsoleLogger {
     // Evita bucles: no reenviar errores originados por el propio envío a Discord.
     if (context === DISCORD_LOG_CONTEXT) return;
 
+    const errorValue: unknown = message;
     const title =
-      typeof message === 'string'
-        ? message
-        : (message?.message ?? 'Unhandled error');
+      typeof errorValue === 'string'
+        ? errorValue
+        : errorValue instanceof Error
+          ? errorValue.message
+          : 'Unhandled error';
 
     void this.discord.sendError({
       title,
       context,
-      stack: stack ?? (message instanceof Error ? message.stack : undefined),
+      stack:
+        stack ?? (errorValue instanceof Error ? errorValue.stack : undefined),
     });
   }
 }
