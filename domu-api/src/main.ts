@@ -11,6 +11,15 @@ async function bootstrap() {
   app.useLogger(app.get(DiscordLogger));
   app.useGlobalPipes(new ValidationPipe());
 
+  const corsOrigin = process.env.CORS_ORIGIN?.split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  app.enableCors({
+    origin: corsOrigin?.length
+      ? corsOrigin
+      : process.env.NODE_ENV !== 'production',
+  });
+
   if (process.env.NODE_ENV !== 'production') {
     const config = new DocumentBuilder()
       .setTitle('Domus API')
