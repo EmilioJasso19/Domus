@@ -10,6 +10,7 @@ import {
 	Pencil,
 	Repeat,
 	Trash2,
+	Users,
 	X,
 } from "lucide-react-native";
 import { useCallback, useMemo, useState } from "react";
@@ -30,6 +31,7 @@ import {
 	assignOccurrenceToUser,
 	deleteTaskOccurrence,
 	EFFORT_LABELS,
+	eligibleResponsibles,
 	getTaskOccurrence,
 	type TaskFrequency,
 	toggleTaskCompletion,
@@ -145,6 +147,12 @@ export default function TaskDetailScreen() {
 		useCallback(() => {
 			loadData();
 		}, [loadData]),
+	);
+
+	// Candidatos del selector de reasignación: respeta members_only de la plantilla.
+	const reassignCandidates = useMemo(
+		() => eligibleResponsibles(members, task?.members_only ?? false),
+		[members, task?.members_only],
 	);
 
 	const responsible = useMemo(
@@ -284,8 +292,18 @@ export default function TaskDetailScreen() {
 						contentContainerClassName="px-5 pb-8"
 						showsVerticalScrollIndicator={false}
 					>
-						{/* ── Status badge ── */}
-						<StatusBadge completed={task.is_completed} />
+						{/* ── Status badge + solo miembros ── */}
+						<View className="flex-row items-center gap-2">
+							<StatusBadge completed={task.is_completed} />
+							{task.members_only ? (
+								<View className="flex-row items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5">
+									<Users size={14} color="#6B7280" />
+									<Text className="text-sm font-nunito-bold text-gray-600">
+										Solo miembros
+									</Text>
+								</View>
+							) : null}
+						</View>
 
 						{/* ── Name ── */}
 						<Text className="mt-3 text-2xl font-nunito-extrabold text-gray-900">
@@ -450,12 +468,12 @@ export default function TaskDetailScreen() {
 				onClose={() => setReassignOpen(false)}
 				title="Reasignar a"
 			>
-				{members.length === 0 ? (
+				{reassignCandidates.length === 0 ? (
 					<Text className="px-5 py-4 text-base font-nunito text-gray-500">
 						No hay miembros en este hogar.
 					</Text>
 				) : (
-					members.map((m) => {
+					reassignCandidates.map((m) => {
 						const active = m.user_id === task?.responsible_id;
 						return (
 							<Pressable

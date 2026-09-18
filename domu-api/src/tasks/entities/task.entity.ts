@@ -37,6 +37,10 @@ export class Task {
   })
   frequency_type!: FrequencyType;
 
+  // true: solo usuarios con rol MEMBER pueden ser responsables (auto o manual).
+  @Column({ type: 'boolean', nullable: false, default: true })
+  members_only!: boolean;
+
   @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
   created_at!: Date;
 

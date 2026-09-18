@@ -10,13 +10,14 @@ import {
 	RefreshCw,
 	X,
 } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	LayoutAnimation,
 	Platform,
 	Pressable,
 	ScrollView,
+	Switch,
 	Text,
 	TextInput,
 	UIManager,
@@ -29,6 +30,7 @@ import axios from "@/api/axios";
 import {
 	assignOccurrenceToUser,
 	EFFORT_LABELS,
+	eligibleResponsibles,
 	getTaskOccurrence,
 } from "@/api/tasks";
 import { BLUE as APP_BLUE } from "@/constants/colors";
@@ -93,9 +95,11 @@ export default function CreateTask() {
 	const [descFocused, setDescFocused] = useState(false);
 	const [dueDate, setDueDate] = useState<string>(""); // YYYY-MM-DD
 	const [dueTime, setDueTime] = useState<Date | null>(null);
-	const [frequency, setFrequency] = useState<Frequency>("daily");
+	const [frequency, setFrequency] = useState<Frequency>("once");
 	const [responsible, setResponsible] = useState<ResponsibleSelection>("auto");
 	const [physicalEffort, setPhysicalEffort] = useState<number>(3);
+	// "Solo miembros": los OWNER no pueden ser responsables. Nuevas tareas: true.
+	const [membersOnly, setMembersOnly] = useState(true);
 	// Tracks the originally-loaded values so edit mode only fires the calls it needs.
 	const [editTaskId, setEditTaskId] = useState<string | null>(null);
 	const [initialResponsible, setInitialResponsible] =
@@ -119,6 +123,31 @@ export default function CreateTask() {
 			.catch(() => setMembers([]));
 	}, [householdIdSelected]);
 
+	// Sin ningún MEMBER (p.ej. solo el propietario) el switch no aplica: se
+	// oculta y se envía members_only: false.
+	const hasMember = members.some((m) => m.role === "MEMBER");
+	const isSolo = members.length === 1;
+	const effectiveMembersOnly = membersOnly && hasMember;
+	const pickableMembers = useMemo(
+		() => eligibleResponsibles(members, effectiveMembersOnly),
+		[members, effectiveMembersOnly],
+	);
+
+	// Hogar unipersonal (solo al crear): preselecciona al único usuario.
+	useEffect(() => {
+		if (isEditing || !isSolo) return;
+		setResponsible(members[0].user_id);
+	}, [isEditing, isSolo, members]);
+
+	// Si el responsable elegido deja de ser elegible al activar el switch, vuelve a Automático.
+	// Se espera a que carguen los miembros para no borrar el prefill al editar.
+	useEffect(() => {
+		if (responsible === "auto" || members.length === 0) return;
+		if (!pickableMembers.some((m) => m.user_id === responsible)) {
+			setResponsible("auto");
+		}
+	}, [members.length, pickableMembers, responsible]);
+
 	// Prefill the form when editing an existing occurrence.
 	useEffect(() => {
 		if (!editId) return;
@@ -133,6 +162,7 @@ export default function CreateTask() {
 				setDueTime(task.due_time ? timeStringToDate(task.due_time) : null);
 				setFrequency(task.frequency_type);
 				setPhysicalEffort(task.physical_effort);
+				setMembersOnly(task.members_only);
 				setEditTaskId(task.task_id);
 				const initial = task.responsible_id ?? "auto";
 				setResponsible(initial);
@@ -187,6 +217,7 @@ export default function CreateTask() {
 					description: description.trim() || undefined,
 					physical_effort: physicalEffort,
 					frequency_type: frequency,
+					members_only: effectiveMembersOnly,
 				});
 				await axios.patch(`/task-occurrences/${editId}`, {
 					due_date: dueDate,
@@ -206,6 +237,7 @@ export default function CreateTask() {
 					due_time: payloadTime,
 					frequency_type: frequency,
 					physical_effort: physicalEffort,
+					members_only: effectiveMembersOnly,
 				});
 			}
 			router.back();
@@ -390,6 +422,32 @@ export default function CreateTask() {
 
 						{showMore && (
 							<View className="mt-4">
+								{/* Solo miembros (oculto si el hogar no tiene ningún MEMBER) */}
+								{hasMember && (
+									<Pressable
+										onPress={() => setMembersOnly((p) => !p)}
+										accessibilityRole="switch"
+										accessibilityState={{ checked: membersOnly }}
+										className="flex-row items-center bg-white border border-gray-200 rounded-2xl px-4 py-3 mb-6"
+									>
+										<View className="flex-1 mr-3">
+											<Text className="text-sm font-nunito-bold text-gray-700">
+												Solo miembros
+											</Text>
+											<Text className="text-xs font-nunito text-gray-500 mt-0.5">
+												Los propietarios no serán asignados
+											</Text>
+										</View>
+										<Switch
+											value={membersOnly}
+											onValueChange={setMembersOnly}
+											trackColor={{ false: "#D1D5DB", true: FOCUS_BLUE }}
+											thumbColor="#FFFFFF"
+											ios_backgroundColor="#D1D5DB"
+										/>
+									</Pressable>
+								)}
+
 								{/* Responsable */}
 								<Text className="text-sm font-nunito-bold text-gray-700 mb-3">
 									Responsable
@@ -417,8 +475,8 @@ export default function CreateTask() {
 										</Text>
 									</Pressable>
 
-									{/* Miembros */}
-									{members.map((m) => {
+									{/* Miembros elegibles según "Solo miembros" */}
+									{pickableMembers.map((m) => {
 										const active = responsible === m.user_id;
 										return (
 											<Pressable

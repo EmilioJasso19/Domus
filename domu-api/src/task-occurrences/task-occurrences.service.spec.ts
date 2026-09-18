@@ -29,7 +29,7 @@ const mockOccurrenceRepository: any = {
 };
 const mockTaskRepository: any = {};
 const mockHomeRepository: any = {};
-const mockUhrService: any = { exists: jest.fn() };
+const mockUhrService: any = { exists: jest.fn(), findOne: jest.fn() };
 const mockHomeService: any = { incrementPoints: jest.fn() };
 const mockRemindersService: any = {
   scheduleForOccurrence: jest.fn(),
@@ -205,6 +205,67 @@ describe('TaskOccurrencesService', () => {
 
       expect(mockOccurrenceRepository.save).toHaveBeenCalled();
       expect(mockPushService.sendToUser).not.toHaveBeenCalled();
+    });
+  });
+  // Asignación manual: respeta members_only de la plantilla.
+  describe('assignToUser - members_only', () => {
+    const uhr = (user_id: string, role: string) => ({
+      user_id,
+      home_id: 'h1',
+      role: { name: role },
+    });
+    const occWith = (members_only: boolean) =>
+      buildOccurrence({
+        user_id: null,
+        task: { id: 't1', home_id: 'h1', physical_effort: 2, members_only },
+      });
+
+    beforeEach(() => {
+      // Autor autenticado pertenece al hogar.
+      mockUhrService.exists.mockResolvedValue({ user_id: '1', home_id: 'h1' });
+      jest.spyOn(service as any, 'setResponsible').mockResolvedValue(undefined);
+    });
+
+    it('tarea solo miembros + destino OWNER: BadRequest', async () => {
+      mockOccurrenceRepository.findOne.mockResolvedValue(occWith(true));
+      mockUhrService.findOne.mockResolvedValue(uhr('9', 'OWNER'));
+
+      await expect(
+        service.assignToUser('o1', '9', { id: '1' } as any),
+      ).rejects.toThrow(BadRequestException);
+      expect((service as any).setResponsible).not.toHaveBeenCalled();
+    });
+
+    it('tarea solo miembros + destino MEMBER: llama a setResponsible', async () => {
+      const occ = occWith(true);
+      mockOccurrenceRepository.findOne.mockResolvedValue(occ);
+      mockUhrService.findOne.mockResolvedValue(uhr('9', 'MEMBER'));
+
+      await service.assignToUser('o1', '9', { id: '1' } as any);
+
+      expect((service as any).setResponsible).toHaveBeenCalledWith(occ, '9');
+    });
+
+    it('tarea para todos + destino OWNER: OK', async () => {
+      const occ = occWith(false);
+      mockOccurrenceRepository.findOne.mockResolvedValue(occ);
+      mockUhrService.findOne.mockResolvedValue(uhr('9', 'OWNER'));
+
+      await service.assignToUser('o1', '9', { id: '1' } as any);
+
+      expect((service as any).setResponsible).toHaveBeenCalledWith(occ, '9');
+    });
+
+    it('destino fuera del hogar: BadRequest (400 existente)', async () => {
+      mockOccurrenceRepository.findOne.mockResolvedValue(occWith(false));
+      mockUhrService.findOne.mockRejectedValue(new Error('not found'));
+
+      await expect(
+        service.assignToUser('o1', '9', { id: '1' } as any),
+      ).rejects.toThrow(
+        new BadRequestException('El usuario no pertenece a este hogar'),
+      );
+      expect((service as any).setResponsible).not.toHaveBeenCalled();
     });
   });
 });

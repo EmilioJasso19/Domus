@@ -11,6 +11,7 @@ import { Days } from '@/blocked-schedules/enums/days.enums';
 import { FrequencyType } from '@/tasks/enums/frequency-type.enum';
 import { AssignmentResult, MemberSnapshot } from './assignment.types';
 import { selectAssignee } from './scoring';
+import { isEligibleResponsible } from '@/tasks/eligibility';
 
 export interface AssignAllResult {
   assigned: { occurrenceId: string; userId: string }[];
@@ -49,7 +50,11 @@ export class AssignmentService {
     const homeId = occurrence.task.home_id;
 
     const members = await this.uhrService.findAllByHome(homeId);
-    const available = await this.filterAvailable(members, occurrence);
+    // Elegibilidad por rol (members_only de la plantilla) antes de disponibilidad.
+    const eligible = members.filter((m) =>
+      isEligibleResponsible(occurrence.task, m),
+    );
+    const available = await this.filterAvailable(eligible, occurrence);
     if (available.length === 0) {
       // La UI preguntará: ¿continuar de todas formas o cambiar fecha/hora?
       return { status: 'NO_AVAILABLE' };
@@ -97,7 +102,12 @@ export class AssignmentService {
     const result: AssignAllResult = { assigned: [], unassigned: [] };
 
     for (const occurrence of occurrences) {
-      const available = await this.filterAvailable(members, occurrence);
+      // Cada ocurrencia puede pertenecer a una tarea distinta: el filtro por
+      // members_only se aplica por ocurrencia, la carga se comparte en memoria.
+      const eligible = members.filter((m) =>
+        isEligibleResponsible(occurrence.task, m),
+      );
+      const available = await this.filterAvailable(eligible, occurrence);
       if (available.length === 0) {
         result.unassigned.push({
           occurrenceId: occurrence.id,

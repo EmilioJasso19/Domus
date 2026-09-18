@@ -15,7 +15,11 @@ const dayOf = (d: string) =>
     'saturday',
   ][new Date(`${d}T00:00:00Z`).getUTCDay()];
 
-const member = (id: string) => ({ user_id: id, user: { id } });
+const member = (id: string, role = 'MEMBER') => ({
+  user_id: id,
+  user: { id },
+  role: { name: role },
+});
 
 const occurrence = (over: any = {}) => ({
   id: '1',
@@ -26,6 +30,8 @@ const occurrence = (over: any = {}) => ({
     home_id: 'h1',
     physical_effort: 2,
     frequency_type: FrequencyType.DAILY,
+    // Bandera de la PLANTILLA (tasks.members_only); la ocurrencia la hereda.
+    members_only: false,
   },
   ...over,
 });
@@ -169,6 +175,86 @@ describe('AssignmentService', () => {
         '2',
       );
     });
+
+    describe('members_only (solo miembros)', () => {
+      it('con members_only=true ignora al OWNER aunque tenga la menor carga', async () => {
+        occurrences.findOne.mockResolvedValue(
+          occurrence({ task: { ...occurrence().task, members_only: true } }),
+        );
+        uhr.findAllByHome.mockResolvedValue([
+          member('1', 'OWNER'),
+          member('2', 'MEMBER'),
+        ]);
+        occurrences.sumActiveEffort.mockImplementation((userId: string) =>
+          userId === '2' ? 10 : 0,
+        );
+
+        const result = await service.assignOccurrence('1');
+
+        expect(result).toEqual({ status: 'OK', userId: '2' });
+        expect(occurrences.setResponsible).toHaveBeenCalledWith(
+          expect.objectContaining({ id: '1' }),
+          '2',
+        );
+      });
+
+      it('con members_only=false un OWNER puede ganar', async () => {
+        occurrences.findOne.mockResolvedValue(
+          occurrence({ task: { ...occurrence().task, members_only: false } }),
+        );
+        uhr.findAllByHome.mockResolvedValue([
+          member('1', 'OWNER'),
+          member('2', 'MEMBER'),
+        ]);
+        occurrences.sumActiveEffort.mockImplementation((userId: string) =>
+          userId === '2' ? 10 : 0,
+        );
+
+        const result = await service.assignOccurrence('1');
+
+        expect(result).toEqual({ status: 'OK', userId: '1' });
+      });
+
+      it('con members_only=true y solo OWNERs devuelve NO_AVAILABLE sin persistir', async () => {
+        occurrences.findOne.mockResolvedValue(
+          occurrence({ task: { ...occurrence().task, members_only: true } }),
+        );
+        uhr.findAllByHome.mockResolvedValue([member('1', 'OWNER')]);
+
+        const result = await service.assignOccurrence('1');
+
+        expect(result).toEqual({ status: 'NO_AVAILABLE' });
+        expect(occurrences.setResponsible).not.toHaveBeenCalled();
+      });
+
+      it('con members_only=true y todos los MEMBER bloqueados no cae en el OWNER', async () => {
+        const occ = occurrence({
+          due_time: '09:00:00',
+          task: { ...occurrence().task, members_only: true },
+        });
+        occurrences.findOne.mockResolvedValue(occ);
+        uhr.findAllByHome.mockResolvedValue([
+          member('1', 'OWNER'),
+          member('2', 'MEMBER'),
+        ]);
+        blocked.findAll.mockImplementation((user: any) =>
+          user.id === '2'
+            ? [
+                {
+                  day: dayOf(occ.due_date),
+                  start_time: '00:00:00',
+                  end_time: '23:59:00',
+                },
+              ]
+            : [],
+        );
+
+        const result = await service.assignOccurrence('1');
+
+        expect(result).toEqual({ status: 'NO_AVAILABLE' });
+        expect(occurrences.setResponsible).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('assignAllForHome', () => {
@@ -210,6 +296,58 @@ describe('AssignmentService', () => {
         { occurrenceId: 'C', reason: 'NO_AVAILABLE' },
       ]);
       expect(occurrences.setResponsible).toHaveBeenCalledTimes(2);
+    });
+
+    it('filtra candidatos por ocurrencia según members_only de cada tarea y acumula carga', async () => {
+      // A: solo miembros -> candidato único '2' (MEMBER).
+      const occA = occurrence({
+        id: 'A',
+        due_date: '2026-06-10',
+        task: {
+          ...occurrence().task,
+          id: 'tA',
+          members_only: true,
+          physical_effort: 5,
+        },
+      });
+      // B: para todos -> '1' (OWNER) tiene menor carga porque '2' acaba de recibir A.
+      const occB = occurrence({
+        id: 'B',
+        due_date: '2026-06-11',
+        task: {
+          ...occurrence().task,
+          id: 'tB',
+          members_only: false,
+          physical_effort: 5,
+        },
+      });
+      // C: solo miembros -> vuelve a '2' aunque '1' tenga la misma carga.
+      const occC = occurrence({
+        id: 'C',
+        due_date: '2026-06-12',
+        task: {
+          ...occurrence().task,
+          id: 'tC',
+          members_only: true,
+          physical_effort: 5,
+        },
+      });
+
+      occurrences.findUnassignedByHome.mockResolvedValue([occA, occB, occC]);
+      uhr.findAllByHome.mockResolvedValue([
+        member('1', 'OWNER'),
+        member('2', 'MEMBER'),
+      ]);
+      occurrences.sumActiveEffort.mockResolvedValue(0);
+
+      const result = await service.assignAllForHome('h1');
+
+      expect(result.assigned).toEqual([
+        { occurrenceId: 'A', userId: '2' },
+        { occurrenceId: 'B', userId: '1' },
+        { occurrenceId: 'C', userId: '2' },
+      ]);
+      expect(result.unassigned).toEqual([]);
     });
   });
 

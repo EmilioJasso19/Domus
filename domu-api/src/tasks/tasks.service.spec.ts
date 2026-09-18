@@ -31,7 +31,17 @@ const mockTaskRepository = {
 const mockUhrService = {
   exists: jest.fn(),
   findOneBy: jest.fn(),
+  findAllByHome: jest.fn(),
 };
+
+const participant = (user_id: string, role: string): any => ({
+  user_id,
+  user: { id: user_id },
+  role: { name: role },
+});
+// Hogar típico: un OWNER ('1') y un MEMBER ('2').
+const mixedHome = () => [participant('1', 'OWNER'), participant('2', 'MEMBER')];
+const ownerOnlyHome = () => [participant('1', 'OWNER')];
 
 const mockOccurrencesService = {
   createForTask: jest.fn(),
@@ -67,6 +77,7 @@ describe('TasksService', () => {
         home_id: validDto.home_id,
       };
       mockUhrService.exists.mockResolvedValue(true);
+      mockUhrService.findAllByHome.mockResolvedValue(mixedHome());
       mockTaskRepository.create.mockImplementation((data) => data);
       mockTaskRepository.save.mockResolvedValue(createdTask);
       mockOccurrencesService.createForTask.mockResolvedValue(undefined);
@@ -113,6 +124,146 @@ describe('TasksService', () => {
       const dto = plainToInstance(CreateTaskDto, validDto);
       const errors = await validate(dto);
       expect(errors.find((e) => e.property === 'name')).toBeUndefined();
+    });
+  });
+  // members_only — "solo miembros": solo usuarios con rol MEMBER pueden ser
+  // responsables. Vive en la plantilla (tasks), no en la ocurrencia.
+  describe('members_only en create', () => {
+    beforeEach(() => {
+      mockUhrService.exists.mockResolvedValue(true);
+      mockTaskRepository.create.mockImplementation((data) => data);
+      mockTaskRepository.save.mockImplementation((data) =>
+        Promise.resolve({ id: 't1', ...data }),
+      );
+      mockOccurrencesService.createForTask.mockResolvedValue(undefined);
+    });
+
+    const savedPayload = () => mockTaskRepository.save.mock.calls[0][0];
+
+    it('omitido y el hogar tiene MEMBER: persiste true', async () => {
+      mockUhrService.findAllByHome.mockResolvedValue(mixedHome());
+
+      await service.create(validDto, authUser);
+
+      expect(savedPayload()).toEqual(
+        expect.objectContaining({ members_only: true }),
+      );
+    });
+
+    it('explícito false: persiste false', async () => {
+      mockUhrService.findAllByHome.mockResolvedValue(mixedHome());
+
+      await service.create({ ...validDto, members_only: false }, authUser);
+
+      expect(savedPayload()).toEqual(
+        expect.objectContaining({ members_only: false }),
+      );
+    });
+
+    it('omitido y sin MEMBER en el hogar: persiste false', async () => {
+      mockUhrService.findAllByHome.mockResolvedValue(ownerOnlyHome());
+
+      await service.create(validDto, authUser);
+
+      expect(savedPayload()).toEqual(
+        expect.objectContaining({ members_only: false }),
+      );
+    });
+
+    it('explícito true y sin MEMBER: BadRequest', async () => {
+      mockUhrService.findAllByHome.mockResolvedValue(ownerOnlyHome());
+
+      await expect(
+        service.create({ ...validDto, members_only: true }, authUser),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockTaskRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('responsible_id OWNER con members_only=true: BadRequest', async () => {
+      mockUhrService.findAllByHome.mockResolvedValue(mixedHome());
+
+      await expect(
+        service.create(
+          { ...validDto, members_only: true, responsible_id: '1' },
+          authUser,
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockTaskRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('responsible_id fuera del hogar: BadRequest', async () => {
+      mockUhrService.findAllByHome.mockResolvedValue(mixedHome());
+
+      await expect(
+        service.create({ ...validDto, responsible_id: '99' }, authUser),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockTaskRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('responsible_id OWNER con members_only=false: OK', async () => {
+      mockUhrService.findAllByHome.mockResolvedValue(mixedHome());
+
+      await service.create(
+        { ...validDto, members_only: false, responsible_id: '1' },
+        authUser,
+      );
+
+      expect(mockOccurrencesService.createForTask).toHaveBeenCalledWith(
+        't1',
+        validDto.due_date,
+        undefined,
+        '1',
+      );
+    });
+  });
+
+  describe('members_only - validación de DTO', () => {
+    it('es opcional', async () => {
+      const dto = plainToInstance(CreateTaskDto, validDto);
+      const errors = await validate(dto);
+      expect(errors.find((e) => e.property === 'members_only')).toBeUndefined();
+    });
+
+    it('rechaza un valor no booleano', async () => {
+      const dto = plainToInstance(CreateTaskDto, {
+        ...validDto,
+        members_only: 'yes',
+      });
+      const errors = await validate(dto);
+      const err = errors.find((e) => e.property === 'members_only');
+      expect(err).toBeDefined();
+      expect(err?.constraints).toHaveProperty('isBoolean');
+    });
+  });
+
+  describe('members_only en update', () => {
+    it('poner true en un hogar sin MEMBER: BadRequest', async () => {
+      mockTaskRepository.findOneBy.mockResolvedValue({
+        id: 't1',
+        home_id: 'h1',
+        members_only: false,
+      });
+      mockUhrService.findAllByHome.mockResolvedValue(ownerOnlyHome());
+
+      await expect(
+        service.update('t1', { members_only: true }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockTaskRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('pasar de false a true guarda y no toca ocurrencias', async () => {
+      const task = { id: 't1', home_id: 'h1', members_only: false };
+      mockTaskRepository.findOneBy.mockResolvedValue(task);
+      mockUhrService.findAllByHome.mockResolvedValue(mixedHome());
+      mockTaskRepository.save.mockImplementation((t) => Promise.resolve(t));
+
+      const result = await service.update('t1', { members_only: true });
+
+      expect(result).toEqual(expect.objectContaining({ members_only: true }));
+      expect(mockTaskRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 't1', members_only: true }),
+      );
+      expect(mockOccurrencesService.createForTask).not.toHaveBeenCalled();
     });
   });
 });

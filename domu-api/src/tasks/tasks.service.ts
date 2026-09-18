@@ -9,6 +9,7 @@ import { User } from '@/users/entities/user.entity';
 import { UserHomeRoleService } from '@/user-home-role/user-home-role.service';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 import { TaskOccurrencesService } from '@/task-occurrences/task-occurrences.service';
+import { hasMemberRole, isEligibleResponsible } from './eligibility';
 
 @Injectable()
 export class TasksService {
@@ -30,9 +31,35 @@ export class TasksService {
       throw new BadRequestException('No perteneces a este hogar');
     }
 
+    const participants = await this.uhrService.findAllByHome(
+      createTaskDto.home_id,
+    );
+    const hasMember = hasMemberRole(participants);
+
+    // members_only: explícito true exige al menos un MEMBER; si se omite, es
+    // true solo cuando el hogar tiene algún MEMBER.
+    if (createTaskDto.members_only === true && !hasMember) {
+      throw new BadRequestException(
+        'No hay miembros en este hogar para una tarea solo de miembros',
+      );
+    }
+    const members_only = createTaskDto.members_only ?? hasMember;
+
     const { due_date, due_time, responsible_id, ...taskData } = createTaskDto;
+
+    // El responsable inicial debe pertenecer al hogar y ser elegible.
+    if (responsible_id) {
+      const target = participants.find((p) => p.user_id === responsible_id);
+      if (!target) {
+        throw new BadRequestException('El usuario no pertenece a este hogar');
+      }
+      if (!isEligibleResponsible({ members_only }, target)) {
+        throw new BadRequestException('Esta tarea es solo para miembros');
+      }
+    }
+
     const task = await this.taskRepository.save(
-      this.taskRepository.create(taskData),
+      this.taskRepository.create({ ...taskData, members_only }),
     );
 
     await this.occurrencesService.createForTask(
@@ -78,6 +105,17 @@ export class TasksService {
     const task = await this.taskRepository.findOneBy({ id });
     if (!task) {
       throw new NotFoundException('Task not found');
+    }
+
+    // Activar "solo miembros" exige que el hogar tenga algún MEMBER. Las
+    // asignaciones existentes no se tocan; solo afecta asignaciones futuras.
+    if (updateTaskDto.members_only === true) {
+      const participants = await this.uhrService.findAllByHome(task.home_id);
+      if (!hasMemberRole(participants)) {
+        throw new BadRequestException(
+          'No hay miembros en este hogar para una tarea solo de miembros',
+        );
+      }
     }
 
     Object.assign(task, updateTaskDto);

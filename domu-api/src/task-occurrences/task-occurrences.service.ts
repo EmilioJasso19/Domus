@@ -21,6 +21,7 @@ import { FindOptionsWhere } from 'typeorm';
 import { RemindersService } from '@/reminders/reminders.service';
 import { HomeService } from '@/home/home.service';
 import { PushNotificationsService } from '@/push-notifications/push-notifications.service';
+import { isEligibleResponsible } from '@/tasks/eligibility';
 
 const APP_TIMEZONE = process.env.APP_TIMEZONE || 'UTC';
 const HOUR_MS = 60 * 60 * 1000;
@@ -191,12 +192,15 @@ export class TaskOccurrencesService {
     const occurrence = await this.findOne(id);
     await this.assertMembership(authUser.id, occurrence.task.home_id);
 
-    const target = await this.uhrService.exists({
-      user_id: userId,
-      home_id: occurrence.task.home_id,
-    });
+    // findOne carga la relación role, necesaria para validar members_only.
+    const target = await this.uhrService
+      .findOne(userId, occurrence.task.home_id)
+      .catch(() => null);
     if (!target) {
       throw new BadRequestException('El usuario no pertenece a este hogar');
+    }
+    if (!isEligibleResponsible(occurrence.task, target)) {
+      throw new BadRequestException('Esta tarea es solo para miembros');
     }
 
     return this.setResponsible(occurrence, userId);

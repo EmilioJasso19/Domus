@@ -9,6 +9,7 @@ import {
   IsInt,
   Min,
   Max,
+  IsBoolean,
 } from 'class-validator';
 import { FrequencyType } from '../enums/frequency-type.enum';
 
@@ -47,6 +48,13 @@ export class CreateTaskDto {
   @Min(1)
   @Max(5)
   physical_effort?: number;
+
+  // Solo miembros: si es true, únicamente usuarios con rol MEMBER pueden ser
+  // responsables. Si se omite, el backend decide según el hogar (true si hay
+  // al menos un MEMBER; false en caso contrario).
+  @IsOptional()
+  @IsBoolean()
+  members_only?: boolean;
 
   // Responsable inicial opcional. Se asigna a la primera ocurrencia; si se
   // omite, la ocurrencia nace sin asignar (la asigna el algoritmo o el usuario).

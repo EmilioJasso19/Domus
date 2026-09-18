@@ -1,4 +1,5 @@
 import axios from "@/api/axios";
+import { HouseholdMember } from "@/constants/types";
 import { useHomeStore } from "@/store/home-store";
 
 export type TaskFrequency = "once" | "daily" | "weekly" | "monthly";
@@ -27,6 +28,9 @@ export type ApiTask = {
 	is_completed: boolean;
 	responsible_id?: string | null;
 	completed_at?: string | null;
+	// Template flag (hoisted like name/frequency_type): only MEMBER-role users
+	// can be responsible when true. The occurrence has no value of its own.
+	members_only: boolean;
 };
 
 // Raw GET /task-occurrences row (occurrence with its nested task template).
@@ -44,6 +48,7 @@ type RawTaskOccurrence = {
 		description?: string | null;
 		frequency_type: TaskFrequency;
 		physical_effort?: number;
+		members_only?: boolean;
 	};
 };
 
@@ -60,7 +65,18 @@ function toApiTask(occ: RawTaskOccurrence): ApiTask {
 		is_completed: !!occ.completed_at,
 		responsible_id: occ.user_id ?? null,
 		completed_at: occ.completed_at ?? null,
+		members_only: occ.task.members_only ?? false,
 	};
+}
+
+// Who can be picked as responsible for a task. With `membersOnly` only
+// MEMBER-role users qualify; otherwise every household participant does.
+// Shared by the create/edit form and the detail screen's reassign picker.
+export function eligibleResponsibles<T extends Pick<HouseholdMember, "role">>(
+	members: T[],
+	membersOnly: boolean,
+): T[] {
+	return membersOnly ? members.filter((m) => m.role === "MEMBER") : members;
 }
 
 type GetTasksParams = {
