@@ -31,6 +31,8 @@ const AUTH_ENDPOINTS_WITHOUT_RETRY = [
 	'/auth/register',
 	'/auth/refresh',
 	'/auth/logout',
+	'/auth/request-reset-password',
+	'/auth/reset-password',
 ];
 
 // Single-flight: si varias peticiones expiran casi al mismo tiempo (p.ej. al

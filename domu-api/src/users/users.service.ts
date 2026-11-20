@@ -8,7 +8,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import * as argon2 from 'argon2';
 import { randomBytes } from 'crypto';
 import { UserHomeRole } from '@/user-home-role/entities/user-home-role.entity';
@@ -66,6 +66,33 @@ export class UsersService {
     });
     // NOTE: this method should return null if not found, which is what we want for signIn
     return user;
+  }
+
+  // Usado por la recuperación de contraseña. Sin distinguir mayúsculas: el
+  // backend no normaliza el correo al registrarse, así que puede haber cuentas
+  // guardadas con mayúsculas. Devuelve null si no existe (no lanza), para que
+  // AuthService responda igual exista o no la cuenta.
+  async findByEmailInsensitive(email: string) {
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .where('LOWER(user.email) = LOWER(:email)', { email: email.trim() })
+      .getOne();
+  }
+
+  // Usado por AuthService.resetPassword — no expuesto por HTTP. No pide la
+  // contraseña actual (a diferencia de updateMe): quien llama ya verificó el
+  // código de recuperación. Acepta un EntityManager para participar en la
+  // transacción de quien llama.
+  async setPassword(
+    userId: string,
+    plainPassword: string,
+    manager?: EntityManager,
+  ) {
+    const hash = await argon2.hash(plainPassword);
+    const repository = manager
+      ? manager.getRepository(User)
+      : this.usersRepository;
+    await repository.update(userId, { password: hash });
   }
 
   async findMe(userId: string) {

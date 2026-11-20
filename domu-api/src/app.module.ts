@@ -21,12 +21,14 @@ import { VirtualPetModule } from './virtual-pet/virtual-pet.module';
 import { DeviceTokensModule } from './device-tokens/device-tokens.module';
 import { RemindersModule } from './reminders/reminders.module';
 import { DiscordModule } from './common/discord/discord.module';
+import { MailModule } from './common/mail/mail.module';
 import { PushNotificationsModule } from './push-notifications/push-notifications.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
     DiscordModule,
+    MailModule,
     ScheduleModule.forRoot(),
     // Límite global por defecto (60/min por IP); auth.controller.ts define
     // límites más estrictos para login/register con @Throttle().

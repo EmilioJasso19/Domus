@@ -9,6 +9,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { UsersModule } from '@/users/users.module';
 import { UserHomeRoleModule } from '@/user-home-role/user-home-role.module';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { PasswordResetCode } from './entities/password-reset-code.entity';
 
 @Module({
   imports: [
@@ -25,7 +26,7 @@ import { RefreshToken } from './entities/refresh-token.entity';
       },
     }),
     UserHomeRoleModule,
-    TypeOrmModule.forFeature([RefreshToken]),
+    TypeOrmModule.forFeature([RefreshToken, PasswordResetCode]),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, AuthCron],

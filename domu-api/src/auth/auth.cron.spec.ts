@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 
 const mockAuthService = {
   purgeExpiredRefreshTokens: jest.fn(),
+  purgeExpiredResetCodes: jest.fn(),
 };
 
 describe('AuthCron', () => {
@@ -31,5 +32,13 @@ describe('AuthCron', () => {
     await cron.handleExpiredRefreshTokens();
 
     expect(mockAuthService.purgeExpiredRefreshTokens).toHaveBeenCalledTimes(1);
+  });
+
+  it('delega la limpieza de códigos de recuperación expirados en AuthService', async () => {
+    mockAuthService.purgeExpiredResetCodes.mockResolvedValue(undefined);
+
+    await cron.handleExpiredResetCodes();
+
+    expect(mockAuthService.purgeExpiredResetCodes).toHaveBeenCalledTimes(1);
   });
 });

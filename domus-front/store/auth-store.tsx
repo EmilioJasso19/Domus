@@ -11,6 +11,16 @@ import { useHomeStore } from "./home-store";
 
 // ===== Zod Schemas ====
 
+// Mismas reglas que el backend (IsStrongPassword en CreateUserDto y
+// ResetPasswordDto): mínimo 8, minúscula, mayúscula, número y símbolo.
+const newPasswordSchema = z
+	.string()
+	.min(8, "La contraseña debe tener al menos 8 caracteres")
+	.regex(/[a-z]/, "Debe contener al menos una minúscula")
+	.regex(/[A-Z]/, "Debe contener al menos una mayúscula")
+	.regex(/[0-9]/, "Debe contener al menos un número")
+	.regex(/[^A-Za-z0-9]/, "Debe contener al menos un símbolo");
+
 export const registerSchema = z.object({
 	name: z
 		.string()
@@ -26,11 +36,7 @@ export const registerSchema = z.object({
 		.optional()
 		.or(z.literal("")),
 	email: z.string().email("Correo electrónico inválido").toLowerCase(),
-	password: z
-		.string()
-		.min(8, "La contraseña debe tener al menos 8 caracteres")
-		.regex(/[A-Z]/, "Debe contener al menos una mayúscula")
-		.regex(/[0-9]/, "Debe contener al menos un número"),
+	password: newPasswordSchema,
 });
 
 export const loginSchema = z.object({
@@ -43,7 +49,24 @@ export const loginSchema = z.object({
 		.regex(/^[^\s]+$/, "No debe contener espacios"),
 });
 
+export const forgotPasswordSchema = z.object({
+	email: z.string().trim().email("Correo electrónico inválido").toLowerCase(),
+});
+
+export const resetPasswordSchema = z
+	.object({
+		code: z.string().regex(/^\d{6}$/, "El código debe tener 6 dígitos"),
+		new_password: newPasswordSchema,
+		confirm_password: z.string(),
+	})
+	.refine((data) => data.new_password === data.confirm_password, {
+		message: "Las contraseñas no coinciden",
+		path: ["confirm_password"],
+	});
+
 export type RegisterForm = z.infer<typeof registerSchema>;
+export type ForgotPasswordForm = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordForm = z.infer<typeof resetPasswordSchema>;
 export type LoginForm = z.infer<typeof loginSchema>;
 
 // ===== Store ====

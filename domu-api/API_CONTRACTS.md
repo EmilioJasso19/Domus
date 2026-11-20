@@ -206,6 +206,65 @@ Backend responsibilities:
 * enforce authorization
 * avoid exposing sensitive information
 
+## Password Recovery
+
+Two public endpoints (no Bearer token). The user receives a 6-digit code by
+email (sent via Resend) and enters it in the app with the new password.
+
+### `POST /auth/request-reset-password`
+
+Request:
+
+```json
+{ "email": "user@example.com" }
+```
+
+Response `200` (always the same body, whether or not the account exists, to
+prevent account enumeration):
+
+```json
+{ "message": "Si el correo está registrado, te enviamos un código." }
+```
+
+Rules:
+
+* code expires after 15 minutes
+* requesting a new code invalidates the previous one
+* per-account cooldown of 60 seconds: requests inside that window return the
+  same `200` but no email is sent
+* rate limit: 3 requests/min per IP → `429`
+
+### `POST /auth/reset-password`
+
+Request:
+
+```json
+{ "email": "user@example.com", "code": "123456", "new_password": "Nueva#Pass1" }
+```
+
+`new_password` follows the same rules as registration: min 8 chars, at least
+one lowercase, one uppercase, one number and one symbol.
+
+Response `200`:
+
+```json
+{ "message": "Contraseña actualizada" }
+```
+
+Errors:
+
+* `400` `"Código inválido o expirado"` — single message for unknown email, no
+  code, wrong code, expired code or exhausted attempts
+* `400` validation errors (bad code format, weak password)
+* rate limit: 5 requests/min per IP → `429`
+
+Rules:
+
+* 5 wrong attempts invalidate the code; a new one must be requested
+* on success, every refresh token of the user is revoked (all devices are
+  logged out) and no session is returned — the frontend must send the user to
+  the login screen
+
 ---
 
 # Business Logic Ownership

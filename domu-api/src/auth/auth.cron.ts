@@ -15,4 +15,10 @@ export class AuthCron {
   async handleExpiredRefreshTokens(): Promise<void> {
     await this.authService.purgeExpiredRefreshTokens();
   }
+
+  // Misma hora: limpia los códigos de recuperación de contraseña vencidos.
+  @Cron(CronExpression.EVERY_DAY_AT_3AM, { timeZone: APP_TIMEZONE })
+  async handleExpiredResetCodes(): Promise<void> {
+    await this.authService.purgeExpiredResetCodes();
+  }
 }

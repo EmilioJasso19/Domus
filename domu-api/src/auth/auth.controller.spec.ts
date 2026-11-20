@@ -26,6 +26,8 @@ const mockAuthService = {
   signUp: jest.fn(),
   refreshTokens: jest.fn(),
   logout: jest.fn(),
+  requestResetPassword: jest.fn(),
+  resetPassword: jest.fn(),
 };
 
 const mockAuthUser = { id: '1', email: 'emilio@example.com' };
@@ -190,6 +192,24 @@ describe('AuthController', () => {
       expect(limit).toBe(3);
       expect(ttl).toBe(60000);
     });
+
+    it('Request reset password tiene @Throttle con limit 3 y ttl 60000', () => {
+      const { limit, ttl } = getThrottleLimits(
+        AuthController.prototype.requestResetPassword,
+      );
+
+      expect(limit).toBe(3);
+      expect(ttl).toBe(60000);
+    });
+
+    it('Reset password tiene @Throttle con limit 5 y ttl 60000', () => {
+      const { limit, ttl } = getThrottleLimits(
+        AuthController.prototype.resetPassword,
+      );
+
+      expect(limit).toBe(5);
+      expect(ttl).toBe(60000);
+    });
     /* eslint-enable @typescript-eslint/unbound-method */
   });
 
@@ -228,6 +248,53 @@ describe('AuthController', () => {
 
       expect(mockAuthService.logout).toHaveBeenCalledWith('1');
       expect(result).toEqual({ message: 'Sesión cerrada' });
+    });
+  });
+
+  describe('POST /auth/request-reset-password', () => {
+    it('delega en authService.requestResetPassword con el body', async () => {
+      const response = {
+        message: 'Si el correo está registrado, te enviamos un código.',
+      };
+      mockAuthService.requestResetPassword.mockResolvedValue(response);
+
+      const result = await controller.requestResetPassword({
+        email: 'emilio@example.com',
+      });
+
+      expect(mockAuthService.requestResetPassword).toHaveBeenCalledWith({
+        email: 'emilio@example.com',
+      });
+      expect(result).toEqual(response);
+    });
+  });
+
+  describe('POST /auth/reset-password', () => {
+    const dto = {
+      email: 'emilio@example.com',
+      code: '123456',
+      new_password: 'Nueva#Pass1',
+    };
+
+    it('delega en authService.resetPassword con el body', async () => {
+      mockAuthService.resetPassword.mockResolvedValue({
+        message: 'Contraseña actualizada',
+      });
+
+      const result = await controller.resetPassword(dto);
+
+      expect(mockAuthService.resetPassword).toHaveBeenCalledWith(dto);
+      expect(result).toEqual({ message: 'Contraseña actualizada' });
+    });
+
+    it('propaga BadRequestException si el código es inválido', async () => {
+      mockAuthService.resetPassword.mockRejectedValue(
+        new BadRequestException('Código inválido o expirado'),
+      );
+
+      await expect(controller.resetPassword(dto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });

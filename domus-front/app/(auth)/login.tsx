@@ -116,6 +116,18 @@ export default function LoginScreen() {
 						error={errors.password}
 					/>
 
+					<Pressable
+						className="self-end py-1"
+						onPress={() => {
+							if (error) clearError();
+							router.push("/(auth)/forgot-password");
+						}}
+						accessibilityRole="link"
+					>
+						<Text className="text-sm font-nunito-semibold text-blue-600">
+							¿Olvidaste tu contraseña?
+						</Text>
+					</Pressable>
 				</View>
 
 				{/* CTA + registro — zona inferior (thumb zone) */}

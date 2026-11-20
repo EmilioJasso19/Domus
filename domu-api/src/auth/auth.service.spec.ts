@@ -5,6 +5,10 @@ import { UsersService } from '@/users/users.service';
 import { UserHomeRoleService } from '@/user-home-role/user-home-role.service';
 import { JwtService } from '@nestjs/jwt';
 import { RefreshToken } from './entities/refresh-token.entity';
+import { PasswordResetCode } from './entities/password-reset-code.entity';
+import { MailService } from '@/common/mail/mail.service';
+import { DataSource } from 'typeorm';
+import { createHmac } from 'crypto';
 import {
   UnauthorizedException,
   ConflictException,
@@ -24,8 +28,10 @@ const mockUser = {
 
 const mockUsersService = {
   findByEmail: jest.fn(),
+  findByEmailInsensitive: jest.fn(),
   create: jest.fn(),
   findOne: jest.fn(),
+  setPassword: jest.fn(),
 };
 
 const mockJwtService = {
@@ -44,6 +50,33 @@ const mockRefreshTokenRepository = {
   delete: jest.fn(),
 };
 
+const mockPasswordResetCodeRepository = {
+  findOneBy: jest.fn(),
+  upsert: jest.fn(),
+  increment: jest.fn(),
+  delete: jest.fn(),
+};
+
+const mockMailService = {
+  sendPasswordResetCode: jest.fn(),
+};
+
+const mockManager = {
+  delete: jest.fn(),
+};
+
+const mockDataSource = {
+  transaction: jest.fn((cb: (manager: typeof mockManager) => unknown) =>
+    cb(mockManager),
+  ),
+};
+
+const RESET_SECRET = 'test-reset-secret';
+
+function hmac(code: string) {
+  return createHmac('sha256', RESET_SECRET).update(code).digest('hex');
+}
+
 describe('AuthService', () => {
   let service: AuthService;
 
@@ -58,6 +91,12 @@ describe('AuthService', () => {
           provide: getRepositoryToken(RefreshToken),
           useValue: mockRefreshTokenRepository,
         },
+        {
+          provide: getRepositoryToken(PasswordResetCode),
+          useValue: mockPasswordResetCodeRepository,
+        },
+        { provide: MailService, useValue: mockMailService },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
@@ -66,6 +105,11 @@ describe('AuthService', () => {
     jest.clearAllMocks();
     mockRefreshTokenRepository.create.mockImplementation((data: any) => data);
     mockRefreshTokenRepository.save.mockResolvedValue({});
+    mockMailService.sendPasswordResetCode.mockResolvedValue(undefined);
+    mockDataSource.transaction.mockImplementation(
+      (cb: (manager: typeof mockManager) => unknown) => cb(mockManager),
+    );
+    process.env.PASSWORD_RESET_SECRET = RESET_SECRET;
   });
 
   it('should be defined', () => {
@@ -353,6 +397,213 @@ describe('AuthService', () => {
       await service.purgeExpiredRefreshTokens();
 
       expect(mockRefreshTokenRepository.delete).toHaveBeenCalledWith({
+        expires_at: expect.objectContaining({ type: 'lessThan' }),
+      });
+    });
+  });
+
+  describe('requestResetPassword', () => {
+    const genericMessage = {
+      message: 'Si el correo está registrado, te enviamos un código.',
+    };
+
+    it('con correo no registrado responde el mensaje genérico y no envía correo', async () => {
+      mockUsersService.findByEmailInsensitive.mockResolvedValue(null);
+
+      const result = await service.requestResetPassword({
+        email: 'nadie@example.com',
+      });
+
+      expect(result).toEqual(genericMessage);
+      expect(mockPasswordResetCodeRepository.upsert).not.toHaveBeenCalled();
+      expect(mockMailService.sendPasswordResetCode).not.toHaveBeenCalled();
+    });
+
+    it('con correo registrado guarda el HMAC del código y envía el correo', async () => {
+      mockUsersService.findByEmailInsensitive.mockResolvedValue(mockUser);
+      mockPasswordResetCodeRepository.findOneBy.mockResolvedValue(null);
+
+      const result = await service.requestResetPassword({
+        email: mockUser.email,
+      });
+
+      expect(result).toEqual(genericMessage);
+      expect(mockMailService.sendPasswordResetCode).toHaveBeenCalledTimes(1);
+      const [to, name, code, minutes] =
+        mockMailService.sendPasswordResetCode.mock.calls[0];
+      expect(to).toBe(mockUser.email);
+      expect(name).toBe(mockUser.name);
+      expect(code).toMatch(/^\d{6}$/);
+      expect(minutes).toBe(15);
+
+      const [row, conflictPaths] =
+        mockPasswordResetCodeRepository.upsert.mock.calls[0];
+      expect(conflictPaths).toEqual(['user_id']);
+      expect(row).toMatchObject({
+        user_id: mockUser.id,
+        code_hash: hmac(code),
+        attempts: 0,
+      });
+      expect(row.code_hash).not.toBe(code);
+      expect(row.expires_at.getTime()).toBeGreaterThan(Date.now());
+    });
+
+    it('no reenvía si el último código se pidió hace menos de un minuto', async () => {
+      mockUsersService.findByEmailInsensitive.mockResolvedValue(mockUser);
+      mockPasswordResetCodeRepository.findOneBy.mockResolvedValue({
+        id: '9',
+        created_at: new Date(Date.now() - 10_000),
+      });
+
+      const result = await service.requestResetPassword({
+        email: mockUser.email,
+      });
+
+      expect(result).toEqual(genericMessage);
+      expect(mockPasswordResetCodeRepository.upsert).not.toHaveBeenCalled();
+      expect(mockMailService.sendPasswordResetCode).not.toHaveBeenCalled();
+    });
+
+    it('si falla el envío del correo igual responde el mensaje genérico', async () => {
+      mockUsersService.findByEmailInsensitive.mockResolvedValue(mockUser);
+      mockPasswordResetCodeRepository.findOneBy.mockResolvedValue(null);
+      mockMailService.sendPasswordResetCode.mockRejectedValue(
+        new Error('resend down'),
+      );
+      const loggerSpy = jest
+        .spyOn((service as any).logger, 'error')
+        .mockImplementation(() => undefined);
+
+      await expect(
+        service.requestResetPassword({ email: mockUser.email }),
+      ).resolves.toEqual(genericMessage);
+
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(loggerSpy).toHaveBeenCalled();
+      expect(String(loggerSpy.mock.calls[0][0])).not.toContain(mockUser.email);
+    });
+  });
+
+  describe('resetPassword', () => {
+    const dto = {
+      email: mockUser.email,
+      code: '123456',
+      new_password: 'Nueva#Pass1',
+    };
+
+    const validRow = () => ({
+      id: '7',
+      user_id: mockUser.id,
+      code_hash: hmac('123456'),
+      attempts: 0,
+      expires_at: new Date(Date.now() + 60_000),
+      created_at: new Date(),
+    });
+
+    beforeEach(() => {
+      mockUsersService.findByEmailInsensitive.mockResolvedValue(mockUser);
+    });
+
+    it('con código correcto cambia la contraseña, borra el código y cierra todas las sesiones', async () => {
+      mockPasswordResetCodeRepository.findOneBy.mockResolvedValue(validRow());
+
+      const result = await service.resetPassword(dto);
+
+      expect(result).toEqual({ message: 'Contraseña actualizada' });
+      expect(mockUsersService.setPassword).toHaveBeenCalledWith(
+        mockUser.id,
+        dto.new_password,
+        mockManager,
+      );
+      expect(mockManager.delete).toHaveBeenCalledWith(PasswordResetCode, {
+        id: '7',
+      });
+      expect(mockManager.delete).toHaveBeenCalledWith(RefreshToken, {
+        user_id: mockUser.id,
+      });
+    });
+
+    it('con correo no registrado lanza BadRequestException', async () => {
+      mockUsersService.findByEmailInsensitive.mockResolvedValue(null);
+
+      await expect(service.resetPassword(dto)).rejects.toThrow(
+        'Código inválido o expirado',
+      );
+      expect(mockUsersService.setPassword).not.toHaveBeenCalled();
+    });
+
+    it('sin código solicitado lanza BadRequestException', async () => {
+      mockPasswordResetCodeRepository.findOneBy.mockResolvedValue(null);
+
+      await expect(service.resetPassword(dto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('con código incorrecto incrementa los intentos y lanza BadRequestException', async () => {
+      mockPasswordResetCodeRepository.findOneBy.mockResolvedValue(validRow());
+
+      await expect(
+        service.resetPassword({ ...dto, code: '000000' }),
+      ).rejects.toThrow('Código inválido o expirado');
+
+      expect(mockPasswordResetCodeRepository.increment).toHaveBeenCalledWith(
+        { id: '7' },
+        'attempts',
+        1,
+      );
+      expect(mockPasswordResetCodeRepository.delete).not.toHaveBeenCalled();
+      expect(mockUsersService.setPassword).not.toHaveBeenCalled();
+    });
+
+    it('al quinto intento fallido elimina el código', async () => {
+      mockPasswordResetCodeRepository.findOneBy.mockResolvedValue({
+        ...validRow(),
+        attempts: 4,
+      });
+
+      await expect(
+        service.resetPassword({ ...dto, code: '000000' }),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(mockPasswordResetCodeRepository.delete).toHaveBeenCalledWith({
+        id: '7',
+      });
+    });
+
+    it('con intentos agotados rechaza incluso el código correcto', async () => {
+      mockPasswordResetCodeRepository.findOneBy.mockResolvedValue({
+        ...validRow(),
+        attempts: 5,
+      });
+
+      await expect(service.resetPassword(dto)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockUsersService.setPassword).not.toHaveBeenCalled();
+    });
+
+    it('con código expirado lo elimina y lanza BadRequestException', async () => {
+      mockPasswordResetCodeRepository.findOneBy.mockResolvedValue({
+        ...validRow(),
+        expires_at: new Date(Date.now() - 1000),
+      });
+
+      await expect(service.resetPassword(dto)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(mockPasswordResetCodeRepository.delete).toHaveBeenCalledWith({
+        id: '7',
+      });
+      expect(mockUsersService.setPassword).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('purgeExpiredResetCodes', () => {
+    it('elimina solo los códigos expirados', async () => {
+      await service.purgeExpiredResetCodes();
+
+      expect(mockPasswordResetCodeRepository.delete).toHaveBeenCalledWith({
         expires_at: expect.objectContaining({ type: 'lessThan' }),
       });
     });

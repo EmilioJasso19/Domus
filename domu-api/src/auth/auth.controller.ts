@@ -14,6 +14,8 @@ import { RefreshDto } from './dto/refresh.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthUser } from './decorators/auth-user.decorators';
 import type { AuthenticatedUser } from './decorators/auth-user.decorators';
+import { RequestResetPasswordDto } from './dto/request-reset-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -44,5 +46,21 @@ export class AuthController {
   @Post('logout')
   logout(@AuthUser() user: AuthenticatedUser) {
     return this.authService.logout(user.id);
+  }
+
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post('request-reset-password')
+  requestResetPassword(
+    @Body() requestResetPasswordDto: RequestResetPasswordDto,
+  ) {
+    return this.authService.requestResetPassword(requestResetPasswordDto);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post('reset-password')
+  resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto);
   }
 }
